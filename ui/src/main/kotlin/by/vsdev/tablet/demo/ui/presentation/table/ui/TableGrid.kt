@@ -1,0 +1,249 @@
+package by.vsdev.tablet.demo.ui.presentation.table.ui
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CollectionInfo
+import androidx.compose.ui.semantics.collectionInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import by.vsdev.tablet.demo.ui.R
+import by.vsdev.tablet.demo.ui.components.molecules.SelectableCell
+import by.vsdev.tablet.demo.ui.components.molecules.selectableCellHeight
+import by.vsdev.tablet.demo.ui.presentation.table.CellState
+import by.vsdev.tablet.demo.ui.presentation.table.TableIntent
+import by.vsdev.tablet.demo.ui.theme.AppSpacing
+import by.vsdev.tablet.demo.ui.theme.AppTheme
+
+private val TableContentPadding = AppSpacing.medium
+private val TableCellSpacing = AppSpacing.small
+private val ScrollIndicatorWidth = 16.dp
+private val MinimumCellWidth = 112.dp
+private val MaximumCellWidth = 220.dp
+
+private object TableCellContentType
+
+internal data class ScrollThumbGeometry(
+    val top: Float,
+    val height: Float,
+)
+
+internal fun calculateScrollThumbGeometry(
+    trackHeight: Float,
+    viewportHeight: Float,
+    contentHeight: Float,
+    scrollOffset: Float,
+    minimumThumbHeight: Float,
+): ScrollThumbGeometry? {
+    if (trackHeight <= 0f || viewportHeight <= 0f || contentHeight <= viewportHeight) return null
+
+    val thumbHeight =
+        (trackHeight * viewportHeight / contentHeight)
+            .coerceIn(minimumThumbHeight.coerceAtMost(trackHeight), trackHeight)
+    val maximumScrollOffset = contentHeight - viewportHeight
+    val scrollFraction = scrollOffset.coerceIn(0f, maximumScrollOffset) / maximumScrollOffset
+    return ScrollThumbGeometry(
+        top = (trackHeight - thumbHeight) * scrollFraction,
+        height = thumbHeight,
+    )
+}
+
+@Composable
+internal fun TableGrid(
+    columns: Int,
+    cells: List<CellState>,
+    onIntent: (TableIntent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val horizontalScrollState = rememberScrollState()
+    val verticalGridState = rememberLazyGridState()
+    val cellHeight = selectableCellHeight()
+
+    Surface(
+        modifier = modifier.fillMaxSize().padding(AppSpacing.medium),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        tonalElevation = 1.dp,
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val viewportWidth = (maxWidth - ScrollIndicatorWidth).coerceAtLeast(0.dp)
+            val availableCellWidth =
+                (viewportWidth - TableContentPadding * 2 - TableCellSpacing * (columns - 1)) / columns
+            val cellWidth = availableCellWidth.coerceIn(MinimumCellWidth, MaximumCellWidth)
+            val tableWidth =
+                TableContentPadding * 2 + cellWidth * columns + TableCellSpacing * (columns - 1)
+            val centeredStartPadding = ((viewportWidth - tableWidth) / 2).coerceAtLeast(0.dp)
+
+            TableCells(
+                columns = columns,
+                cells = cells,
+                cellHeight = cellHeight,
+                state = verticalGridState,
+                startPadding = centeredStartPadding,
+                tableWidth = tableWidth,
+                onIntent = onIntent,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(end = ScrollIndicatorWidth)
+                        .horizontalScroll(horizontalScrollState),
+            )
+
+            VerticalGridScrollIndicator(
+                state = verticalGridState,
+                itemCount = cells.size,
+                columns = columns,
+                cellHeight = cellHeight,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TableCells(
+    columns: Int,
+    cells: List<CellState>,
+    cellHeight: Dp,
+    state: LazyGridState,
+    startPadding: Dp,
+    tableWidth: Dp,
+    onIntent: (TableIntent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val selectedDescription = stringResource(R.string.table_cell_selected)
+    val notSelectedDescription = stringResource(R.string.table_cell_not_selected)
+    val toggleLabel = stringResource(R.string.table_cell_toggle)
+    val editLabel = stringResource(R.string.table_cell_edit)
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columns),
+        state = state,
+        modifier =
+            modifier
+                .padding(start = startPadding)
+                .width(tableWidth)
+                .fillMaxHeight()
+                .semantics {
+                    collectionInfo =
+                        CollectionInfo(
+                            rowCount = (cells.size + columns - 1) / columns,
+                            columnCount = columns,
+                        )
+                },
+        contentPadding = PaddingValues(TableContentPadding),
+        horizontalArrangement = Arrangement.spacedBy(TableCellSpacing),
+        verticalArrangement = Arrangement.spacedBy(TableCellSpacing),
+    ) {
+        items(
+            count = cells.size,
+            key = { it },
+            contentType = { TableCellContentType },
+        ) { index ->
+            val cell = cells[index]
+            SelectableCell(
+                text = cell.text,
+                selected = cell.isSelected,
+                row = index / columns,
+                column = index % columns,
+                cellDescription =
+                    stringResource(
+                        R.string.table_cell_content_description,
+                        index / columns + 1,
+                        index % columns + 1,
+                        cell.text,
+                    ),
+                selectedDescription = selectedDescription,
+                notSelectedDescription = notSelectedDescription,
+                toggleLabel = toggleLabel,
+                editLabel = editLabel,
+                cellHeight = cellHeight,
+                onClick = { onIntent(TableIntent.CellClicked(index)) },
+                onDoubleClick = { onIntent(TableIntent.CellDoubleClicked(index)) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun VerticalGridScrollIndicator(
+    state: LazyGridState,
+    itemCount: Int,
+    columns: Int,
+    cellHeight: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    val thumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+
+    Canvas(
+        modifier =
+            modifier
+                .fillMaxHeight()
+                .width(ScrollIndicatorWidth)
+                .padding(horizontal = 5.dp, vertical = AppSpacing.medium),
+    ) {
+        val totalRows = (itemCount + columns - 1) / columns
+        val cellHeightPx = cellHeight.toPx()
+        val spacing = TableCellSpacing.toPx()
+        val contentPadding = TableContentPadding.toPx()
+        val contentSize =
+            contentPadding * 2 + totalRows * cellHeightPx + (totalRows - 1).coerceAtLeast(0) * spacing
+        val viewportSize =
+            state.layoutInfo.viewportSize.height
+                .toFloat()
+        val trackHeight = size.height
+        val firstVisibleRow = state.firstVisibleItemIndex / columns
+        val scrollOffset = firstVisibleRow * (cellHeightPx + spacing) + state.firstVisibleItemScrollOffset
+        val geometry =
+            calculateScrollThumbGeometry(
+                trackHeight = trackHeight,
+                viewportHeight = viewportSize,
+                contentHeight = contentSize,
+                scrollOffset = scrollOffset,
+                minimumThumbHeight = 32.dp.toPx(),
+            ) ?: return@Canvas
+
+        val cornerRadius = CornerRadius(size.width / 2f)
+        drawRoundRect(color = trackColor, cornerRadius = cornerRadius)
+
+        drawRoundRect(
+            color = thumbColor,
+            topLeft = Offset(0f, geometry.top),
+            size = Size(size.width, geometry.height),
+            cornerRadius = cornerRadius,
+        )
+    }
+}
+
+@Preview(name = "Table grid", widthDp = 700, heightDp = 420)
+@Composable
+private fun TableGridPreview() {
+    val cells = List(40) { CellState(text = "Cell $it", isSelected = it % 3 == 0) }
+    AppTheme { TableGrid(columns = 4, cells = cells, onIntent = {}) }
+}
