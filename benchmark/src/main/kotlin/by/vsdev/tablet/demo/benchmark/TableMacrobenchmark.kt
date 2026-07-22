@@ -16,6 +16,19 @@ class TableMacrobenchmark {
     val benchmarkRule = MacrobenchmarkRule()
 
     @Test
+    fun setupScreenColdStartup() =
+        benchmarkRule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(StartupTimingMetric()),
+            compilationMode = CompilationMode.Partial(),
+            startupMode = StartupMode.COLD,
+            iterations = 10,
+            setupBlock = { pressHome() },
+        ) {
+            startActivityAndWait()
+        }
+
+    @Test
     fun maximumTableStartupAndScroll() =
         benchmarkRule.measureRepeated(
             packageName = TARGET_PACKAGE,
