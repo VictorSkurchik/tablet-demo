@@ -1,0 +1,14 @@
+complexity:
+  TooManyFunctions:
+    ignoreAnnotatedFunctions:
+      - Preview
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated:
+      - Composable
+
+style:
+  MagicNumber:
+    ignoreAnnotated:
+      - Preview
