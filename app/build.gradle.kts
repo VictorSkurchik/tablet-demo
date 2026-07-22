@@ -80,6 +80,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.profileinstaller)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
