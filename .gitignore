@@ -9,6 +9,8 @@
 /.idea/assetWizardSettings.xml
 .idea/deploymentTargetSelector.xml
 .idea/deviceManager.xml
+.idea/markdown.xml
+.idea/vcs.xml
 .DS_Store
 /build
 **/build/
@@ -16,3 +18,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Signing credentials must remain local or in CI secrets.
+*.jks
+*.keystore
+keystore.properties
+signing.properties
