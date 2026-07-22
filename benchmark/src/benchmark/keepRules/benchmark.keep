@@ -1,0 +1,18 @@
+# Optional APIs referenced by the AndroidX benchmark and test dependencies.
+-dontwarn androidx.arch.core.executor.ArchTaskExecutor
+-dontwarn androidx.arch.core.internal.FastSafeIterableMap
+-dontwarn androidx.arch.core.internal.SafeIterableMap$IteratorWithAdditions
+-dontwarn androidx.profileinstaller.ProfileInstallReceiver
+-dontwarn androidx.startup.Initializer
+-dontwarn com.google.errorprone.annotations.CanIgnoreReturnValue
+-dontwarn com.google.errorprone.annotations.MustBeClosed
+-dontwarn android.hardware.fingerprint.FingerprintManager
+-dontwarn android.hardware.fingerprint.FingerprintManager$AuthenticationCallback
+-dontwarn android.hardware.fingerprint.FingerprintManager$AuthenticationResult
+-dontwarn android.hardware.fingerprint.FingerprintManager$CryptoObject
+
+# Keep self-instrumenting benchmark entry points discovered from the manifest or reflection.
+-keep class androidx.benchmark.** { *; }
+-keep class androidx.test.** { *; }
+-keep class by.vsdev.tablet.demo.benchmark.** { *; }
+-keep class org.junit.** { *; }
