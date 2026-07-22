@@ -15,11 +15,20 @@ class BaselineProfileGenerator {
     fun generate() =
         baselineProfileRule.collect(
             packageName = TARGET_PACKAGE,
-            includeInStartupProfile = true,
         ) {
             pressHome()
             startActivityAndWait()
             buildMaximumTable()
             flingTable()
+        }
+
+    @Test
+    fun generateStartupProfile() =
+        baselineProfileRule.collect(
+            packageName = TARGET_PACKAGE,
+            includeInStartupProfile = true,
+        ) {
+            pressHome()
+            startActivityAndWait()
         }
 }
