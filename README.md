@@ -5,7 +5,7 @@
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2026.06.01-4285F4?logo=jetpackcompose&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.1-02303A?logo=gradle&logoColor=white)
 ![Tests](https://img.shields.io/badge/Tests-78%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/Line%20coverage-91.9%25-brightgreen)
+![Coverage](https://img.shields.io/badge/Line%20coverage-91.6%25-brightgreen)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 Tablet Demo is a tablet-only Android application for generating, exploring, selecting, and editing a table of random string values. The project is implemented with Jetpack Compose and split into UI, domain, and data layers.
@@ -27,7 +27,8 @@ Technical requirements: **Only for tablets, Jetpack Compose, Modularization (UI,
 
 ## Screenshots
 
-The screenshots below were captured from the debug build on a Medium Tablet API 35 emulator running Android 15 at 2560 × 1600.
+The screenshots below were recaptured on 23 July 2026 from the debug build on a
+Medium Tablet API 35 emulator running Android 15 at 2560 × 1600.
 
 ### Setup
 
@@ -54,7 +55,7 @@ The application follows a layered modular structure with dependencies pointing t
 | `:app` | Application entry point, navigation, Android resources, and dependency-injection assembly | `:ui`, `:domain`, `:data` |
 | `:ui` | Compose screens, adaptive tablet layout, reusable components, MVI state, and view models | `:domain` |
 | `:domain` | Table models, limits, repository contract, validation, and generation use cases | None |
-| `:data` | Random string generation, repository implementation, and data-layer DI definitions | `:domain` |
+| `:data` | Random string generation and the repository implementation hidden behind the domain contract | `:domain` |
 | `:benchmark` | Macrobenchmark scenario, maximum-table journey, and baseline profile generation | Targets `:app` |
 
 ```text
@@ -67,7 +68,7 @@ The application follows a layered modular structure with dependencies pointing t
 ## Technology stack
 
 - Kotlin 2.4.10 and Java 17 bytecode
-- Android Gradle Plugin 9.3.0 and Gradle 9.6.1
+- Android Gradle Plugin 9.3.1 and Gradle 9.6.1
 - Jetpack Compose with the Compose BOM 2026.06.01
 - Material 3 and Material 3 Adaptive supporting-pane layouts
 - Navigation Compose with type-safe serializable destinations
@@ -82,7 +83,9 @@ The application follows a layered modular structure with dependencies pointing t
 
 ## Testing
 
-The project contains 83 automated scenarios: 52 JVM unit tests, 26 device UI tests, and 5 separately executed macrobenchmark or baseline-profile scenarios. All 78 JVM and UI tests are enforced by the build.
+The project contains 82 automated scenarios: 52 JVM unit tests, 26 device UI
+tests, and 4 separately executed macrobenchmark or baseline-profile scenarios.
+All 78 JVM and UI tests are enforced by the build.
 
 Implemented test types:
 
@@ -127,11 +130,11 @@ The generated report is available at `build/reports/jacoco/coverageReport/html/i
 
 | Coverage metric | Result |
 | --- | ---: |
-| Instructions | 91.31% |
-| Lines | 91.88% |
-| Branches | 79.68% |
-| Methods | 88.54% |
-| Classes | 98.57% |
+| Instructions | 91.01% |
+| Lines | 91.59% |
+| Branches | 79.11% |
+| Methods | 88.10% |
+| Classes | 98.55% |
 
 The build fails below 87% instructions, 73% branches, 88% lines, 84% methods,
 or 96% classes.
@@ -142,7 +145,8 @@ or 96% classes.
 
 ## Benchmarks
 
-Measured on a Pixel Tablet emulator running Android 15 at 2560 × 1600 and 60 Hz.
+Remeasured on 23 July 2026 on a Pixel Tablet emulator running Android 15 at
+2560 × 1600 and 60 Hz, with system animations disabled.
 
 ### Debug build
 
@@ -150,7 +154,7 @@ The development build includes JaCoCo and LeakCanary and does not use R8 optimiz
 
 | Cold startup | Average | Median |
 | --- | ---: | ---: |
-| Activity Manager, 5 runs | 1,007 ms | 999 ms |
+| Activity Manager, 5 runs | 699 ms | 678 ms |
 
 ### Release build
 
@@ -160,20 +164,20 @@ The release-like build uses R8, resource shrinking, `CompilationMode.Partial`, t
 
 | Startup metric, 10 runs | Minimum | Median | Maximum |
 | --- | ---: | ---: | ---: |
-| Time to initial display | 107.7 ms | 127.4 ms | 192.8 ms |
+| Time to initial display | 94.6 ms | 101.9 ms | 114.6 ms |
 
 #### Maximum table startup and scrolling
 
 | Startup metric, 5 runs | Minimum | Median | Maximum |
 | --- | ---: | ---: | ---: |
-| Time to initial display | 273.1 ms | 325.6 ms | 350.6 ms |
-| Time to full display | 1,779.6 ms | 2,066.3 ms | 2,188.7 ms |
-| Measured frame count | 87 | 94 | 100 |
+| Time to initial display | 91.8 ms | 98.4 ms | 136.7 ms |
+| Time to full display | 1,393.9 ms | 1,397.3 ms | 1,437.8 ms |
+| Measured frame count | 81 | 84 | 85 |
 
 | Frame metric | P50 | P90 | P95 | P99 |
 | --- | ---: | ---: | ---: | ---: |
-| CPU frame duration | 18.1 ms | 39.0 ms | 41.7 ms | 156.3 ms |
-| Frame overrun | 3.5 ms | 34.5 ms | 39.4 ms | 151.3 ms |
+| CPU frame duration | 4.9 ms | 8.8 ms | 17.4 ms | 31.8 ms |
+| Frame overrun | −9.6 ms | −5.5 ms | 1.8 ms | 20.0 ms |
 
 Regenerate the checked-in Baseline and Startup Profiles with:
 

@@ -44,7 +44,7 @@ internal const val EDITOR_FIELD_TAG = "editorField"
 internal fun EditorPane(
     index: Int?,
     currentText: String?,
-    onConfirm: (Int, String) -> Unit,
+    onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -80,7 +80,6 @@ internal fun EditorPane(
             modifier = Modifier.semantics { heading() },
         )
         EditorControls(
-            index = index,
             draft = draft,
             focusRequester = focusRequester,
             onConfirm = onConfirm,
@@ -91,10 +90,9 @@ internal fun EditorPane(
 
 @Composable
 private fun EditorControls(
-    index: Int,
     draft: TextFieldState,
     focusRequester: FocusRequester,
-    onConfirm: (Int, String) -> Unit,
+    onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     Column(
@@ -115,7 +113,7 @@ private fun EditorControls(
                 )
             },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            onKeyboardAction = { onConfirm(index, draft.text.toString()) },
+            onKeyboardAction = { onConfirm(draft.text.toString()) },
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -127,7 +125,7 @@ private fun EditorControls(
             verticalArrangement = Arrangement.spacedBy(AppSpacing.small),
         ) {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.editor_cancel)) }
-            Button(onClick = { onConfirm(index, draft.text.toString()) }) {
+            Button(onClick = { onConfirm(draft.text.toString()) }) {
                 Text(stringResource(R.string.editor_save))
             }
         }
@@ -156,7 +154,7 @@ private fun EditorPanePreview() {
         EditorPane(
             index = 3,
             currentText = "Edited cell value",
-            onConfirm = { _, _ -> },
+            onConfirm = {},
             onDismiss = {},
         )
     }
@@ -165,5 +163,5 @@ private fun EditorPanePreview() {
 @Preview(name = "Editor – empty", widthDp = 280, heightDp = 240)
 @Composable
 private fun EditorPaneEmptyPreview() {
-    AppTheme { EditorPane(index = null, currentText = null, onConfirm = { _, _ -> }, onDismiss = {}) }
+    AppTheme { EditorPane(index = null, currentText = null, onConfirm = {}, onDismiss = {}) }
 }
