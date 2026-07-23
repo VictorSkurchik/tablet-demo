@@ -4,8 +4,8 @@
 ![Android](https://img.shields.io/badge/Android-API%2028%2B-3DDC84?logo=android&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2026.06.01-4285F4?logo=jetpackcompose&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.1-02303A?logo=gradle&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-52%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/Coverage-87%25-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-60%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-89%25-brightgreen)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 Tablet Demo is a tablet-only Android application for generating, exploring, selecting, and editing a table of random string values. The project is implemented with Jetpack Compose and split into UI, domain, and data layers.
@@ -27,7 +27,7 @@ Technical requirements: **Only for tablets, Jetpack Compose, Modularization (UI,
 
 ## Screenshots
 
-The screenshots below were captured from the debug build on a Pixel Tablet emulator running Android 15 at 2560 × 1600.
+The screenshots below were captured from the debug build on a Medium Tablet API 35 emulator running Android 15 at 2560 × 1600.
 
 ### Setup
 
@@ -39,7 +39,7 @@ The setup screen validates the supported range before enabling table generation.
 
 ### Table and cell editor
 
-The table screen displays an 8 × 4 data set, several selected cells, and the active cell editor in the supporting pane.
+The table screen displays an 8 × 4 data set, several selected cells, and the active cell editor alongside the visible on-screen IME. The table contracts while the editor remains fully accessible above the keyboard.
 
 <p align="center">
   <img src="./docs/screenshots/table-edit-screen.png" alt="Table screen with selected cells and the cell editor" width="100%">
@@ -73,7 +73,7 @@ The application follows a layered modular structure with dependencies pointing t
 - Navigation Compose with type-safe serializable destinations
 - Kotlin coroutines and `StateFlow`
 - Koin for dependency injection
-- JUnit 4, Turbine, Compose UI Test, and UI Automator
+- JUnit 4, Turbine, Compose UI Test, Espresso 3.7.0, and UI Automator
 - JaCoCo for combined JVM and device-test coverage
 - AndroidX Macrobenchmark and Baseline Profiles
 - AndroidX Profile Installer 1.4.1
@@ -82,7 +82,7 @@ The application follows a layered modular structure with dependencies pointing t
 
 ## Testing
 
-The test suite currently contains 52 scenarios: 38 JVM unit tests, 10 device UI tests, and 4 macrobenchmark or baseline-profile scenarios. The JVM and UI suites completed successfully on an Android 15 tablet emulator.
+The project contains 64 automated scenarios: 47 JVM unit tests, 13 device UI tests, and 4 separately executed macrobenchmark or baseline-profile scenarios. All 60 JVM and UI tests completed successfully on the Medium Tablet API 35 emulator running Android 15.
 
 Implemented test types:
 
@@ -91,7 +91,8 @@ Implemented test types:
 - View-model unit tests for setup validation, table loading, selection, and editing
 - Unit tests for scroll-thumb geometry
 - Dependency-injection graph verification
-- Compose instrumentation tests for number fields, selectable cells, and the editor pane
+- Compose instrumentation tests for number fields, selectable cells, compact setup validation, and the editor pane
+- Regression tests for keyboard-aware setup content and editor-pane height
 - An end-to-end instrumentation journey covering setup, table creation, selection, and editing
 - Macrobenchmark and baseline-profile scenarios for a maximum-size 1,000 × 6 table
 
@@ -116,14 +117,14 @@ The generated report is available at `build/reports/jacoco/coverageReport/html/i
 
 | Coverage metric | Result |
 | --- | ---: |
-| Instructions | 87% (5,755 / 6,552) |
-| Lines | 89.8% (716 / 797) |
-| Branches | 67% (211 / 314) |
-| Methods | 83.0% (191 / 230) |
-| Classes | 98.2% (55 / 56) |
+| Instructions | 89.0% (7,232 / 8,122) |
+| Lines | 89.2% (914 / 1,025) |
+| Branches | 74.0% (313 / 423) |
+| Methods | 85.2% (231 / 271) |
+| Classes | 96.9% (62 / 64) |
 
 <p align="center">
-  <img src="./docs/screenshots/test-coverage.png" alt="Combined JaCoCo coverage report" width="100%">
+  <img src="./docs/screenshots/test-coverage.png" alt="Combined JaCoCo coverage summary" width="100%">
 </p>
 
 ## Benchmarks
