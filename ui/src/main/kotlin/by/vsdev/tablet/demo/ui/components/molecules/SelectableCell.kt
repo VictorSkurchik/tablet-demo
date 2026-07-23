@@ -27,12 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -60,6 +62,11 @@ private data class SelectableCellStyle(
     val border: Color,
     val borderWidth: Dp,
 )
+
+internal fun shouldShowCellFocusIndicator(
+    focused: Boolean,
+    inputMode: InputMode,
+): Boolean = focused && inputMode == InputMode.Keyboard
 
 @Composable
 private fun selectableCellStyle(
@@ -128,9 +135,14 @@ internal fun SelectableCell(
     cellHeight: Dp = selectableCellHeight(),
 ) {
     val appHaptics = LocalAppHaptics.current
+    val inputMode = LocalInputModeManager.current.inputMode
     val interactionSource = remember { MutableInteractionSource() }
     var isFocused by remember { mutableStateOf(false) }
-    val style = selectableCellStyle(selected = selected, focused = isFocused)
+    val style =
+        selectableCellStyle(
+            selected = selected,
+            focused = shouldShowCellFocusIndicator(isFocused, inputMode),
+        )
     val selectCell = {
         appHaptics.performCellSelection(isSelected = !selected)
         onClick()
