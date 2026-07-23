@@ -6,13 +6,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import by.vsdev.tablet.demo.recovery.isValidRecoverySessionId
+import by.vsdev.tablet.demo.recovery.RecoverySessionIdFactory
+import by.vsdev.tablet.demo.recovery.restoreOrCreate
 import by.vsdev.tablet.demo.ui.presentation.setup.SetupRoute
 import by.vsdev.tablet.demo.ui.presentation.table.ui.TableRoute
-import java.util.UUID
 
 @Composable
-internal fun AppRoot() {
+internal fun AppRoot(recoverySessionIdFactory: RecoverySessionIdFactory) {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = SetupDestination) {
@@ -20,7 +20,7 @@ internal fun AppRoot() {
             SetupRoute(
                 onNavigateToTable = { config ->
                     navController.navigate(
-                        TableDestination(config, UUID.randomUUID().toString()),
+                        TableDestination(config, recoverySessionIdFactory.newSessionId()),
                     ) {
                         launchSingleTop = true
                     }
@@ -31,9 +31,7 @@ internal fun AppRoot() {
             val destination = entry.toRoute<TableDestination>()
             val recoverySessionId =
                 rememberSaveable(destination.recoverySessionId) {
-                    destination.recoverySessionId
-                        ?.takeIf(::isValidRecoverySessionId)
-                        ?: UUID.randomUUID().toString()
+                    recoverySessionIdFactory.restoreOrCreate(destination.recoverySessionId)
                 }
             TableRoute(
                 config = destination.toConfig(),

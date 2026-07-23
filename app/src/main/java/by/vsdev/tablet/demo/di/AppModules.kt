@@ -6,7 +6,9 @@ import by.vsdev.tablet.demo.data.recovery.FileTableRecoveryRepository
 import by.vsdev.tablet.demo.domain.usecase.GenerateTableDataUseCase
 import by.vsdev.tablet.demo.domain.usecase.ValidateTableConfigUseCase
 import by.vsdev.tablet.demo.recovery.RecoveryFailureReporter
+import by.vsdev.tablet.demo.recovery.RecoverySessionIdFactory
 import by.vsdev.tablet.demo.recovery.TableRecoveryRepository
+import by.vsdev.tablet.demo.recovery.UuidRecoverySessionIdFactory
 import by.vsdev.tablet.demo.ui.di.uiModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
@@ -20,6 +22,7 @@ private val domainModule =
 
 private val recoveryModule =
     module {
+        single<RecoverySessionIdFactory> { UuidRecoverySessionIdFactory() }
         single {
             RecoveryFailureReporter { operation, sessionId, error ->
                 Log.w(
