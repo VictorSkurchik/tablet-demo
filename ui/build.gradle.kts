@@ -69,8 +69,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.savedstate)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
-    api(platform(libs.koin.bom))
-    api(libs.koin.core)
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.core)
     implementation(libs.koin.androidx.compose)
 
     implementation(platform(libs.kotlinx.coroutines.bom))

@@ -16,9 +16,6 @@ kotlin {
 dependencies {
     implementation(project(":domain"))
 
-    api(platform(libs.koin.bom))
-    api(libs.koin.core)
-
     implementation(platform(libs.kotlinx.coroutines.bom))
     implementation(libs.kotlinx.coroutines.core)
 

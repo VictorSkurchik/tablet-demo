@@ -153,12 +153,14 @@ internal fun SetupForm(
     columnsInput: TextFieldState,
     onIntent: (SetupIntent) -> Unit,
     useCompactImeLayout: Boolean,
+    modifier: Modifier = Modifier,
     rowsModifier: Modifier = Modifier,
     columnsModifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
 
     ResponsiveFormContainer(
+        modifier = modifier,
         contentPadding = if (useCompactImeLayout) AppSpacing.small else AppSpacing.large,
         verticalSpacing = if (useCompactImeLayout) AppSpacing.small else AppSpacing.medium,
     ) {

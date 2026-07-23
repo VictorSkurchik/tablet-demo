@@ -60,7 +60,7 @@ internal class TableViewModel(
         when (intent) {
             is TableIntent.CellClicked -> toggleColor(intent.index)
             is TableIntent.CellDoubleClicked -> openEditor(intent.index)
-            is TableIntent.EditConfirmed -> confirmEdit(intent.index, intent.text)
+            is TableIntent.EditConfirmed -> confirmEdit(intent.text)
             TableIntent.EditDismissed -> dismissEditor()
             TableIntent.RetryLoad -> load()
         }
@@ -75,14 +75,10 @@ internal class TableViewModel(
         setState { copy(editingIndex = index) }
     }
 
-    private fun confirmEdit(
-        index: Int,
-        text: String,
-    ) {
+    private fun confirmEdit(text: String) {
+        val index = state.value.editingIndex ?: return
         updateCell(index) { copy(text = text.take(MAX_CELL_TEXT_LENGTH)) }
-        if (index in state.value.cells.indices) {
-            dismissEditor()
-        }
+        dismissEditor()
     }
 
     private fun dismissEditor() {
