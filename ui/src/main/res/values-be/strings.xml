@@ -1,0 +1,31 @@
+<resources>
+    <string name="setup_title">Памер табліцы</string>
+    <string name="setup_subtitle">Выберыце колькасць радкоў і слупкоў.</string>
+    <string name="setup_rows_label">Радкі</string>
+    <string name="setup_columns_label">Слупкі</string>
+    <string name="setup_build">Стварыць табліцу</string>
+    <string name="setup_allowed_range">Дапушчальна: %1$d–%2$d</string>
+    <string name="setup_error_required">Абавязковае поле</string>
+    <string name="setup_error_not_a_number">Увядзіце цэлы лік</string>
+    <string name="setup_error_min">Мінімум: %1$d</string>
+    <string name="setup_error_max">Максімум: %1$d</string>
+
+    <string name="table_title">Табліца · %1$d × %2$d</string>
+    <string name="table_loading">Стварэнне даных…</string>
+    <string name="table_load_error">Не ўдалося стварыць табліцу.</string>
+    <string name="table_retry">Паўтарыць</string>
+    <string name="table_back">Назад</string>
+    <string name="table_cell_content_description">Радок %1$d, слупок %2$d: %3$s</string>
+    <string name="table_cell_selected">Выбрана</string>
+    <string name="table_cell_not_selected">Не выбрана</string>
+    <string name="table_cell_toggle">Змяніць колер ячэйкі</string>
+    <string name="table_cell_edit">Рэдагаваць ячэйку</string>
+    <string name="table_close_editor">Закрыць рэдактар</string>
+
+    <string name="editor_title">Рэдагаванне ячэйкі</string>
+    <string name="editor_field_label">Значэнне</string>
+    <string name="editor_character_count">Сімвалаў: %1$d/%2$d</string>
+    <string name="editor_save">Захаваць</string>
+    <string name="editor_cancel">Скасаваць</string>
+    <string name="editor_empty_hint">Выберыце ячэйку, каб змяніць яе значэнне.</string>
+</resources>

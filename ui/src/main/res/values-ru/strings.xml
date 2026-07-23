@@ -1,0 +1,31 @@
+<resources>
+    <string name="setup_title">Размер таблицы</string>
+    <string name="setup_subtitle">Выберите количество строк и столбцов.</string>
+    <string name="setup_rows_label">Строки</string>
+    <string name="setup_columns_label">Столбцы</string>
+    <string name="setup_build">Создать таблицу</string>
+    <string name="setup_allowed_range">Допустимо: %1$d–%2$d</string>
+    <string name="setup_error_required">Обязательное поле</string>
+    <string name="setup_error_not_a_number">Введите целое число</string>
+    <string name="setup_error_min">Минимум: %1$d</string>
+    <string name="setup_error_max">Максимум: %1$d</string>
+
+    <string name="table_title">Таблица · %1$d × %2$d</string>
+    <string name="table_loading">Создание данных…</string>
+    <string name="table_load_error">Не удалось создать таблицу.</string>
+    <string name="table_retry">Повторить</string>
+    <string name="table_back">Назад</string>
+    <string name="table_cell_content_description">Строка %1$d, столбец %2$d: %3$s</string>
+    <string name="table_cell_selected">Выбрано</string>
+    <string name="table_cell_not_selected">Не выбрано</string>
+    <string name="table_cell_toggle">Изменить цвет ячейки</string>
+    <string name="table_cell_edit">Редактировать ячейку</string>
+    <string name="table_close_editor">Закрыть редактор</string>
+
+    <string name="editor_title">Редактирование ячейки</string>
+    <string name="editor_field_label">Значение</string>
+    <string name="editor_character_count">Символов: %1$d/%2$d</string>
+    <string name="editor_save">Сохранить</string>
+    <string name="editor_cancel">Отмена</string>
+    <string name="editor_empty_hint">Выберите ячейку, чтобы изменить её значение.</string>
+</resources>

@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.test)
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 android {
@@ -31,21 +32,15 @@ android {
     }
 
     targetProjectPath = ":app"
-    experimentalProperties["android.experimental.self-instrumenting"] = true
-
-    buildTypes {
-        create("benchmark") {
-            isDebuggable = false
-            isMinifyEnabled = true
-            isShrinkResources = true
-            signingConfig = signingConfigs.getByName("debug")
-        }
-    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
+
+baselineProfile {
+    useConnectedDevices = true
 }
 
 kotlin {

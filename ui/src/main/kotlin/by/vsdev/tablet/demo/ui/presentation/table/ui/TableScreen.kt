@@ -5,10 +5,8 @@ import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +15,6 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,11 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.isTraversalGroup
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -53,8 +47,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.ui.R
+import by.vsdev.tablet.demo.ui.components.molecules.ErrorContent
 import by.vsdev.tablet.demo.ui.components.molecules.LoadingContent
-import by.vsdev.tablet.demo.ui.presentation.table.CellState
+import by.vsdev.tablet.demo.ui.presentation.table.CellUiState
 import by.vsdev.tablet.demo.ui.presentation.table.TableIntent
 import by.vsdev.tablet.demo.ui.presentation.table.TableLoadState
 import by.vsdev.tablet.demo.ui.presentation.table.TableUiState
@@ -84,7 +79,6 @@ fun TableRoute(
     ReportDrawnWhen { state.loadState != TableLoadState.Loading }
     TableScreen(
         state = state,
-        cells = viewModel.cells,
         onIntent = viewModel::onIntent,
         onNavigateUp = onNavigateUp,
         modifier = modifier,
@@ -95,7 +89,6 @@ fun TableRoute(
 @Composable
 internal fun TableScreen(
     state: TableUiState,
-    cells: List<CellState>,
     onIntent: (TableIntent) -> Unit,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -144,7 +137,6 @@ internal fun TableScreen(
     ) { innerPadding ->
         TablePaneLayout(
             state = state,
-            cells = cells,
             navigator = navigator,
             imeBottom = imeBottom,
             isOnScreenKeyboardVisible = isOnScreenKeyboardVisible,
@@ -159,7 +151,6 @@ internal fun TableScreen(
 @Composable
 private fun TablePaneLayout(
     state: TableUiState,
-    cells: List<CellState>,
     navigator: ThreePaneScaffoldNavigator<SupportingPaneScaffoldRole>,
     imeBottom: Int,
     isOnScreenKeyboardVisible: Boolean,
@@ -197,7 +188,6 @@ private fun TablePaneLayout(
                     TableMainPane(
                         loadState = state.loadState,
                         columns = state.config.columns,
-                        cells = cells,
                         restoreFocusIndex = restoreFocusIndex,
                         onIntent = onIntent,
                     )
@@ -216,26 +206,17 @@ private fun TablePaneLayout(
                                 }
                             },
                 ) {
-                    TableEditorContent(state, cells, onIntent)
+                    val index = state.editingIndex
+                    EditorPane(
+                        index = index,
+                        currentText = index?.let { state.cells.getOrNull(it)?.text },
+                        onConfirm = { i, text -> onIntent(TableIntent.EditConfirmed(i, text)) },
+                        onDismiss = { onIntent(TableIntent.EditDismissed) },
+                    )
                 }
             },
         )
     }
-}
-
-@Composable
-private fun TableEditorContent(
-    state: TableUiState,
-    cells: List<CellState>,
-    onIntent: (TableIntent) -> Unit,
-) {
-    val index = state.editingIndex
-    EditorPane(
-        index = index,
-        currentText = index?.let { cells.getOrNull(it)?.text },
-        onConfirm = { i, text -> onIntent(TableIntent.EditConfirmed(i, text)) },
-        onDismiss = { onIntent(TableIntent.EditDismissed) },
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -272,69 +253,38 @@ private fun TableTopBar(
 private fun TableMainPane(
     loadState: TableLoadState,
     columns: Int,
-    cells: List<CellState>,
     restoreFocusIndex: Int?,
     onIntent: (TableIntent) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (loadState) {
-            TableLoadState.Loading -> {
+            TableLoadState.Loading ->
                 LoadingContent(
                     message = stringResource(R.string.table_loading),
                     modifier = Modifier.align(Alignment.Center),
                 )
-            }
 
-            TableLoadState.Error -> {
-                TableLoadError(
+            TableLoadState.Error ->
+                ErrorContent(
+                    message = stringResource(R.string.table_load_error),
+                    retryLabel = stringResource(R.string.table_retry),
                     onRetry = { onIntent(TableIntent.RetryLoad) },
-                    modifier = Modifier.align(Alignment.Center),
+                    modifier = Modifier.align(Alignment.Center).padding(AppSpacing.large),
                 )
-            }
 
-            TableLoadState.Content -> {
+            is TableLoadState.Content ->
                 TableGrid(
                     columns = columns,
-                    cells = cells,
+                    cells = loadState.cells,
                     restoreFocusIndex = restoreFocusIndex,
                     onIntent = onIntent,
                 )
-            }
         }
     }
 }
 
-@Composable
-private fun TableLoadError(
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val message = stringResource(R.string.table_load_error)
-    Column(
-        modifier =
-            modifier
-                .padding(AppSpacing.large)
-                .semantics {
-                    liveRegion = LiveRegionMode.Polite
-                    error(message)
-                    isTraversalGroup = true
-                },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
-    ) {
-        Text(
-            text = message,
-            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-            modifier = Modifier.semantics { heading() },
-        )
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.table_retry))
-        }
-    }
-}
-
-private fun tableScreenPreviewCells(count: Int): List<CellState> =
-    List(count) { CellState(text = "Cell $it", isSelected = it % 3 == 0) }
+private fun tableScreenPreviewCells(count: Int): List<CellUiState> =
+    List(count) { CellUiState(text = "Cell $it", isSelected = it % 3 == 0) }
 
 @Preview(name = "Table – populated", widthDp = 900, heightDp = 600)
 @Composable
@@ -344,9 +294,8 @@ private fun TableScreenPopulatedPreview() {
             state =
                 TableUiState(
                     config = TableConfig(rows = 4, columns = 3),
-                    loadState = TableLoadState.Content,
+                    loadState = TableLoadState.Content(tableScreenPreviewCells(12)),
                 ),
-            cells = tableScreenPreviewCells(12),
             onIntent = {},
             onNavigateUp = {},
         )
@@ -361,10 +310,9 @@ private fun TableScreenEditorPreview() {
             state =
                 TableUiState(
                     config = TableConfig(rows = 4, columns = 3),
-                    loadState = TableLoadState.Content,
+                    loadState = TableLoadState.Content(tableScreenPreviewCells(12)),
                     editingIndex = 0,
                 ),
-            cells = tableScreenPreviewCells(12),
             onIntent = {},
             onNavigateUp = {},
         )
@@ -379,9 +327,8 @@ private fun TableScreenSplitPreview() {
             state =
                 TableUiState(
                     config = TableConfig(rows = 8, columns = 6),
-                    loadState = TableLoadState.Content,
+                    loadState = TableLoadState.Content(tableScreenPreviewCells(48)),
                 ),
-            cells = tableScreenPreviewCells(48),
             onIntent = {},
             onNavigateUp = {},
         )
@@ -394,7 +341,6 @@ private fun TableScreenLoadingPreview() {
     AppTheme {
         TableScreen(
             state = TableUiState(config = TableConfig(rows = 4, columns = 3)),
-            cells = emptyList(),
             onIntent = {},
             onNavigateUp = {},
         )

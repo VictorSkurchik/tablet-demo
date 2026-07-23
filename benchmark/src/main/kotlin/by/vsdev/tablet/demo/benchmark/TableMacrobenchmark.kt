@@ -42,4 +42,22 @@ class TableMacrobenchmark {
             buildMaximumTable()
             flingTable()
         }
+
+    @Test
+    fun maximumTableHorizontalScroll() =
+        benchmarkRule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(FrameTimingMetric()),
+            compilationMode = CompilationMode.Partial(),
+            iterations = 5,
+            setupBlock = {
+                killProcess()
+                pressHome()
+                startActivityAndWait()
+                buildMaximumTable()
+                openFirstCellEditor()
+            },
+        ) {
+            flingTableHorizontally()
+        }
 }

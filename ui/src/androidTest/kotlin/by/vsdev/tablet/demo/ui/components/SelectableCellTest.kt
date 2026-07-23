@@ -1,21 +1,14 @@
 package by.vsdev.tablet.demo.ui.components
 
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.InputMode
-import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHeightIsAtLeast
-import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -23,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.Density
@@ -44,28 +38,14 @@ class SelectableCellTest {
     fun selectedCell_exposesStateAndClickAction() {
         var clicks = 0
         val haptics = RecordingAppHaptics()
-        composeRule.setContent {
-            AppTheme {
-                CompositionLocalProvider(LocalAppHaptics provides haptics) {
-                    SelectableCell(
-                        text = "Cell value",
-                        selected = true,
-                        row = 0,
-                        column = 1,
-                        cellDescription = "Row 1, column 2: Cell value",
-                        selectedDescription = "Selected",
-                        notSelectedDescription = "Not selected",
-                        toggleLabel = "Toggle cell color",
-                        editLabel = "Edit cell",
-                        onClick = { clicks++ },
-                        onDoubleClick = {},
-                    )
-                }
-            }
-        }
+        setCell(
+            selected = true,
+            haptics = haptics,
+            onClick = { clicks++ },
+        )
 
         composeRule
-            .onNodeWithContentDescription("Row 1, column 2: Cell value")
+            .onNodeWithContentDescription(CELL_DESCRIPTION)
             .assertIsSelected()
             .assert(
                 SemanticsMatcher.expectValue(
@@ -74,7 +54,6 @@ class SelectableCellTest {
                 ),
             ).performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { clicks == 1 }
-        assertEquals(1, clicks)
         assertEquals(listOf(false), haptics.selectionStates)
     }
 
@@ -83,28 +62,14 @@ class SelectableCellTest {
         var clicks = 0
         var edits = 0
         val haptics = RecordingAppHaptics()
-        composeRule.setContent {
-            AppTheme {
-                CompositionLocalProvider(LocalAppHaptics provides haptics) {
-                    SelectableCell(
-                        text = "Cell value",
-                        selected = false,
-                        row = 0,
-                        column = 1,
-                        cellDescription = "Row 1, column 2: Cell value",
-                        selectedDescription = "Selected",
-                        notSelectedDescription = "Not selected",
-                        toggleLabel = "Toggle cell color",
-                        editLabel = "Edit cell",
-                        onClick = { clicks++ },
-                        onDoubleClick = { edits++ },
-                    )
-                }
-            }
-        }
+        setCell(
+            haptics = haptics,
+            onClick = { clicks++ },
+            onDoubleClick = { edits++ },
+        )
 
         composeRule
-            .onNodeWithContentDescription("Row 1, column 2: Cell value")
+            .onNodeWithContentDescription(CELL_DESCRIPTION)
             .performTouchInput { doubleClick() }
 
         composeRule.runOnIdle {
@@ -136,6 +101,7 @@ class SelectableCellTest {
                 }
             }
         }
+        composeRule.waitForIdle()
 
         composeRule.onNodeWithContentDescription("Large text cell").assertHeightIsAtLeast(76.dp)
     }
@@ -162,61 +128,55 @@ class SelectableCellTest {
 
     @Test
     fun enterTogglesSelectionWhileF2OpensEditor() {
-        var selections = 0
+        var clicks = 0
         var edits = 0
-        val focusHandle =
-            setCell(
-                onClick = { selections++ },
-                onDoubleClick = { edits++ },
-            )
+        val haptics = RecordingAppHaptics()
+        setCell(
+            haptics = haptics,
+            onClick = { clicks++ },
+            onDoubleClick = { edits++ },
+        )
         val cell = composeRule.onNodeWithContentDescription(CELL_DESCRIPTION)
+        cell.performSemanticsAction(SemanticsActions.RequestFocus)
 
-        composeRule.runOnIdle {
-            focusHandle.inputModeManager.requestInputMode(InputMode.Keyboard)
-            focusHandle.focusRequester.requestFocus()
-        }
-        cell.assertIsFocused()
         cell.performKeyInput { pressKey(Key.Enter) }
         cell.performKeyInput { pressKey(Key.F2) }
 
         composeRule.runOnIdle {
-            assertEquals(1, selections)
+            assertEquals(1, clicks)
             assertEquals(1, edits)
+            assertEquals(listOf(true), haptics.selectionStates)
+            assertEquals(1, haptics.editCount)
         }
     }
 
     private fun setCell(
-        onClick: () -> Unit,
-        onDoubleClick: () -> Unit,
-    ): CellFocusHandle {
-        val focusRequester = FocusRequester()
-        lateinit var inputModeManager: InputModeManager
+        selected: Boolean = false,
+        haptics: AppHaptics = RecordingAppHaptics(),
+        onClick: () -> Unit = {},
+        onDoubleClick: () -> Unit = {},
+    ) {
         composeRule.setContent {
-            inputModeManager = LocalInputModeManager.current
             AppTheme {
-                SelectableCell(
-                    text = "Cell value",
-                    selected = false,
-                    row = 0,
-                    column = 1,
-                    cellDescription = CELL_DESCRIPTION,
-                    selectedDescription = "Selected",
-                    notSelectedDescription = "Not selected",
-                    toggleLabel = "Toggle selection",
-                    editLabel = "Edit cell",
-                    onClick = onClick,
-                    onDoubleClick = onDoubleClick,
-                    modifier = Modifier.focusRequester(focusRequester),
-                )
+                CompositionLocalProvider(LocalAppHaptics provides haptics) {
+                    SelectableCell(
+                        text = "Cell value",
+                        selected = selected,
+                        row = 0,
+                        column = 1,
+                        cellDescription = CELL_DESCRIPTION,
+                        selectedDescription = "Selected",
+                        notSelectedDescription = "Not selected",
+                        toggleLabel = "Toggle selection",
+                        editLabel = "Edit cell",
+                        onClick = onClick,
+                        onDoubleClick = onDoubleClick,
+                    )
+                }
             }
         }
-        return CellFocusHandle(focusRequester, inputModeManager)
+        composeRule.waitForIdle()
     }
-
-    private data class CellFocusHandle(
-        val focusRequester: FocusRequester,
-        val inputModeManager: InputModeManager,
-    )
 
     private class RecordingAppHaptics : AppHaptics {
         val selectionStates = mutableListOf<Boolean>()
