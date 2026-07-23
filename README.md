@@ -6,6 +6,7 @@
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.1-02303A?logo=gradle&logoColor=white)
 ![Tests](https://img.shields.io/badge/Tests-52%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/Coverage-87%25-brightgreen)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 Tablet Demo is a tablet-only Android application for generating, exploring, selecting, and editing a table of random string values. The project is implemented with Jetpack Compose and split into UI, domain, and data layers.
 
@@ -210,3 +211,9 @@ Run static analysis:
 ```bash
 ./gradlew ktlintCheck detekt
 ```
+
+## License
+
+Copyright © 2026 Victor Skurchik.
+
+Licensed under the [Apache License 2.0](./LICENSE).
