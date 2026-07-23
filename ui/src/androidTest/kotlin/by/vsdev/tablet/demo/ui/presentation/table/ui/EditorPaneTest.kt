@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
+import androidx.test.espresso.Espresso.closeSoftKeyboard
 import by.vsdev.tablet.demo.ui.presentation.table.MAX_CELL_TEXT_LENGTH
 import by.vsdev.tablet.demo.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
@@ -107,6 +108,7 @@ class EditorPaneTest {
             }
         }
 
+        closeSoftKeyboard()
         composeRule.onNodeWithText("Save").performScrollTo().performClick()
 
         composeRule.runOnIdle { assertTrue(confirmed) }
