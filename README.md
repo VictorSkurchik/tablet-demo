@@ -170,6 +170,18 @@ The following improvements are intentionally outside the current requirements:
 - Physical-device performance validation and further optimization of large-table scrolling
 - Automated profile regeneration, release signing, store publishing, and CI/CD delivery
 
+## Git workflow
+
+The project uses a feature-based Git Flow:
+
+1. Create `feature/<name>` from `develop`.
+2. Keep commits focused and use Conventional Commits.
+3. Push the feature branch and merge it into `develop` with a dedicated merge commit.
+4. Verify and push `develop`.
+5. Merge `develop` into `main` with a dedicated release merge commit, then push `main`.
+
+Feature branches are never merged directly into `main`, and shared branches must not be force-pushed.
+
 ## Build and verification
 
 Build the debug APK:
