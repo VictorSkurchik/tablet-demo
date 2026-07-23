@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import by.vsdev.tablet.demo.ui.haptics.LocalAppHaptics
 import by.vsdev.tablet.demo.ui.theme.AppSpacing
 import by.vsdev.tablet.demo.ui.theme.AppTheme
 import by.vsdev.tablet.demo.ui.theme.LocalCellColors
@@ -65,6 +66,7 @@ internal fun SelectableCell(
     cellHeight: Dp = selectableCellHeight(),
 ) {
     val cellColors = LocalCellColors.current
+    val appHaptics = LocalAppHaptics.current
     val background = if (selected) cellColors.selected else MaterialTheme.colorScheme.surfaceVariant
     val contentColor = if (selected) cellColors.onSelected else MaterialTheme.colorScheme.onSurfaceVariant
     val borderColor = if (selected) cellColors.selected else MaterialTheme.colorScheme.outlineVariant
@@ -86,12 +88,14 @@ internal fun SelectableCell(
                     customActions =
                         listOf(
                             CustomAccessibilityAction(editLabel) {
+                                appHaptics.performCellEdit()
                                 onDoubleClick()
                                 true
                             },
                         )
                 }.onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyUp && (event.key == Key.Enter || event.key == Key.F2)) {
+                        appHaptics.performCellEdit()
                         onDoubleClick()
                         true
                     } else {
@@ -99,8 +103,14 @@ internal fun SelectableCell(
                     }
                 }.combinedClickable(
                     onClickLabel = toggleLabel,
-                    onClick = onClick,
-                    onDoubleClick = onDoubleClick,
+                    onClick = {
+                        appHaptics.performCellSelection(isSelected = !selected)
+                        onClick()
+                    },
+                    onDoubleClick = {
+                        appHaptics.performCellEdit()
+                        onDoubleClick()
+                    },
                 ).padding(horizontal = AppSpacing.small),
         contentAlignment = Alignment.Center,
     ) {
