@@ -4,10 +4,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldState
@@ -24,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -55,11 +60,19 @@ internal fun EditorPane(
             TextFieldState(currentText.take(MAX_CELL_TEXT_LENGTH))
         }
     val focusRequester = remember(index) { FocusRequester() }
+    val editorControlsRequester = remember(index) { BringIntoViewRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
 
     LaunchedEffect(index) {
         focusRequester.requestFocus()
         keyboardController?.show()
+    }
+
+    LaunchedEffect(index, imeBottom) {
+        if (imeBottom > 0) {
+            editorControlsRequester.bringIntoView()
+        }
     }
 
     Column(
@@ -72,12 +85,45 @@ internal fun EditorPane(
         verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
     ) {
         Text(stringResource(R.string.editor_title), style = MaterialTheme.typography.titleLarge)
+        EditorControls(
+            index = index,
+            draft = draft,
+            focusRequester = focusRequester,
+            bringIntoViewRequester = editorControlsRequester,
+            onConfirm = onConfirm,
+            onDismiss = onDismiss,
+        )
+    }
+}
+
+@Composable
+private fun EditorControls(
+    index: Int,
+    draft: TextFieldState,
+    focusRequester: FocusRequester,
+    bringIntoViewRequester: BringIntoViewRequester,
+    onConfirm: (Int, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .bringIntoViewRequester(bringIntoViewRequester),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
+    ) {
         AppOutlinedTextField(
             state = draft,
             label = stringResource(R.string.editor_field_label),
             maxLength = MAX_CELL_TEXT_LENGTH,
             supportingText = {
-                Text(stringResource(R.string.editor_character_count, draft.text.length, MAX_CELL_TEXT_LENGTH))
+                Text(
+                    stringResource(
+                        R.string.editor_character_count,
+                        draft.text.length,
+                        MAX_CELL_TEXT_LENGTH,
+                    ),
+                )
             },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             onKeyboardAction = { onConfirm(index, draft.text.toString()) },

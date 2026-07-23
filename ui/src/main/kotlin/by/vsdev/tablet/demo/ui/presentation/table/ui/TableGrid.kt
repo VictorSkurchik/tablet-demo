@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -41,34 +43,107 @@ import by.vsdev.tablet.demo.ui.theme.AppTheme
 
 private val TableContentPadding = AppSpacing.medium
 private val TableCellSpacing = AppSpacing.small
-private val ScrollIndicatorWidth = 16.dp
+private val ScrollIndicatorThickness = 16.dp
 private val MinimumCellWidth = 112.dp
 private val MaximumCellWidth = 220.dp
 
 private object TableCellContentType
 
 internal data class ScrollThumbGeometry(
-    val top: Float,
-    val height: Float,
+    val offset: Float,
+    val length: Float,
 )
 
 internal fun calculateScrollThumbGeometry(
-    trackHeight: Float,
-    viewportHeight: Float,
-    contentHeight: Float,
+    trackLength: Float,
+    viewportLength: Float,
+    contentLength: Float,
     scrollOffset: Float,
-    minimumThumbHeight: Float,
+    minimumThumbLength: Float,
 ): ScrollThumbGeometry? {
-    if (trackHeight <= 0f || viewportHeight <= 0f || contentHeight <= viewportHeight) return null
+    if (trackLength <= 0f || viewportLength <= 0f || contentLength <= viewportLength) return null
 
-    val thumbHeight =
-        (trackHeight * viewportHeight / contentHeight)
-            .coerceIn(minimumThumbHeight.coerceAtMost(trackHeight), trackHeight)
-    val maximumScrollOffset = contentHeight - viewportHeight
+    val thumbLength =
+        (trackLength * viewportLength / contentLength)
+            .coerceIn(minimumThumbLength.coerceAtMost(trackLength), trackLength)
+    val maximumScrollOffset = contentLength - viewportLength
     val scrollFraction = scrollOffset.coerceIn(0f, maximumScrollOffset) / maximumScrollOffset
     return ScrollThumbGeometry(
-        top = (trackHeight - thumbHeight) * scrollFraction,
-        height = thumbHeight,
+        offset = (trackLength - thumbLength) * scrollFraction,
+        length = thumbLength,
+    )
+}
+
+internal data class ScrollIndicatorVisibility(
+    val vertical: Boolean,
+    val horizontal: Boolean,
+)
+
+internal fun calculateScrollIndicatorVisibility(
+    viewportWidth: Float,
+    viewportHeight: Float,
+    contentWidth: Float,
+    contentHeight: Float,
+    indicatorThickness: Float,
+): ScrollIndicatorVisibility {
+    var vertical = contentHeight > viewportHeight
+    var horizontal = contentWidth > viewportWidth
+
+    repeat(2) {
+        horizontal = contentWidth > (viewportWidth - if (vertical) indicatorThickness else 0f)
+        vertical = contentHeight > (viewportHeight - if (horizontal) indicatorThickness else 0f)
+    }
+
+    return ScrollIndicatorVisibility(vertical = vertical, horizontal = horizontal)
+}
+
+private data class TableGridLayout(
+    val indicatorVisibility: ScrollIndicatorVisibility,
+    val endInset: Dp,
+    val bottomInset: Dp,
+    val tableWidth: Dp,
+    val centeredStartPadding: Dp,
+)
+
+private fun calculateTableGridLayout(
+    viewportWidth: Dp,
+    viewportHeight: Dp,
+    columns: Int,
+    itemCount: Int,
+    cellHeight: Dp,
+): TableGridLayout {
+    val totalRows = (itemCount + columns - 1) / columns
+    val contentHeight =
+        TableContentPadding * 2 +
+            cellHeight * totalRows +
+            TableCellSpacing * (totalRows - 1).coerceAtLeast(0)
+    val minimumTableWidth =
+        TableContentPadding * 2 +
+            MinimumCellWidth * columns +
+            TableCellSpacing * (columns - 1)
+    val indicatorVisibility =
+        calculateScrollIndicatorVisibility(
+            viewportWidth = viewportWidth.value,
+            viewportHeight = viewportHeight.value,
+            contentWidth = minimumTableWidth.value,
+            contentHeight = contentHeight.value,
+            indicatorThickness = ScrollIndicatorThickness.value,
+        )
+    val endInset = if (indicatorVisibility.vertical) ScrollIndicatorThickness else 0.dp
+    val bottomInset = if (indicatorVisibility.horizontal) ScrollIndicatorThickness else 0.dp
+    val availableWidth = (viewportWidth - endInset).coerceAtLeast(0.dp)
+    val availableCellWidth =
+        (availableWidth - TableContentPadding * 2 - TableCellSpacing * (columns - 1)) / columns
+    val cellWidth = availableCellWidth.coerceIn(MinimumCellWidth, MaximumCellWidth)
+    val tableWidth =
+        TableContentPadding * 2 + cellWidth * columns + TableCellSpacing * (columns - 1)
+
+    return TableGridLayout(
+        indicatorVisibility = indicatorVisibility,
+        endInset = endInset,
+        bottomInset = bottomInset,
+        tableWidth = tableWidth,
+        centeredStartPadding = ((availableWidth - tableWidth) / 2).coerceAtLeast(0.dp),
     )
 }
 
@@ -91,36 +166,54 @@ internal fun TableGrid(
         tonalElevation = 1.dp,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val viewportWidth = (maxWidth - ScrollIndicatorWidth).coerceAtLeast(0.dp)
-            val availableCellWidth =
-                (viewportWidth - TableContentPadding * 2 - TableCellSpacing * (columns - 1)) / columns
-            val cellWidth = availableCellWidth.coerceIn(MinimumCellWidth, MaximumCellWidth)
-            val tableWidth =
-                TableContentPadding * 2 + cellWidth * columns + TableCellSpacing * (columns - 1)
-            val centeredStartPadding = ((viewportWidth - tableWidth) / 2).coerceAtLeast(0.dp)
+            val layout =
+                calculateTableGridLayout(
+                    viewportWidth = maxWidth,
+                    viewportHeight = maxHeight,
+                    columns = columns,
+                    itemCount = cells.size,
+                    cellHeight = cellHeight,
+                )
 
             TableCells(
                 columns = columns,
                 cells = cells,
                 cellHeight = cellHeight,
                 state = verticalGridState,
-                startPadding = centeredStartPadding,
-                tableWidth = tableWidth,
+                startPadding = layout.centeredStartPadding,
+                tableWidth = layout.tableWidth,
                 onIntent = onIntent,
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(end = ScrollIndicatorWidth)
+                        .padding(end = layout.endInset, bottom = layout.bottomInset)
                         .horizontalScroll(horizontalScrollState),
             )
 
-            VerticalGridScrollIndicator(
-                state = verticalGridState,
-                itemCount = cells.size,
-                columns = columns,
-                cellHeight = cellHeight,
-                modifier = Modifier.align(Alignment.CenterEnd),
-            )
+            if (layout.indicatorVisibility.vertical) {
+                VerticalGridScrollIndicator(
+                    state = verticalGridState,
+                    itemCount = cells.size,
+                    columns = columns,
+                    cellHeight = cellHeight,
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(bottom = layout.bottomInset),
+                )
+            }
+
+            if (layout.indicatorVisibility.horizontal) {
+                HorizontalScrollIndicator(
+                    scrollOffset = horizontalScrollState.value,
+                    maximumScrollOffset = horizontalScrollState.maxValue,
+                    viewportWidth = horizontalScrollState.viewportSize,
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(end = layout.endInset),
+                )
+            }
         }
     }
 }
@@ -205,7 +298,7 @@ private fun VerticalGridScrollIndicator(
         modifier =
             modifier
                 .fillMaxHeight()
-                .width(ScrollIndicatorWidth)
+                .width(ScrollIndicatorThickness)
                 .padding(horizontal = 5.dp, vertical = AppSpacing.medium),
     ) {
         val totalRows = (itemCount + columns - 1) / columns
@@ -222,11 +315,11 @@ private fun VerticalGridScrollIndicator(
         val scrollOffset = firstVisibleRow * (cellHeightPx + spacing) + state.firstVisibleItemScrollOffset
         val geometry =
             calculateScrollThumbGeometry(
-                trackHeight = trackHeight,
-                viewportHeight = viewportSize,
-                contentHeight = contentSize,
+                trackLength = trackHeight,
+                viewportLength = viewportSize,
+                contentLength = contentSize,
                 scrollOffset = scrollOffset,
-                minimumThumbHeight = 32.dp.toPx(),
+                minimumThumbLength = 32.dp.toPx(),
             ) ?: return@Canvas
 
         val cornerRadius = CornerRadius(size.width / 2f)
@@ -234,8 +327,46 @@ private fun VerticalGridScrollIndicator(
 
         drawRoundRect(
             color = thumbColor,
-            topLeft = Offset(0f, geometry.top),
-            size = Size(size.width, geometry.height),
+            topLeft = Offset(0f, geometry.offset),
+            size = Size(size.width, geometry.length),
+            cornerRadius = cornerRadius,
+        )
+    }
+}
+
+@Composable
+private fun HorizontalScrollIndicator(
+    scrollOffset: Int,
+    maximumScrollOffset: Int,
+    viewportWidth: Int,
+    modifier: Modifier = Modifier,
+) {
+    val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    val thumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+
+    Canvas(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(ScrollIndicatorThickness)
+                .padding(horizontal = AppSpacing.medium, vertical = 5.dp),
+    ) {
+        val viewportSize = viewportWidth.toFloat()
+        val geometry =
+            calculateScrollThumbGeometry(
+                trackLength = size.width,
+                viewportLength = viewportSize,
+                contentLength = viewportSize + maximumScrollOffset,
+                scrollOffset = scrollOffset.toFloat(),
+                minimumThumbLength = 32.dp.toPx(),
+            ) ?: return@Canvas
+
+        val cornerRadius = CornerRadius(size.height / 2f)
+        drawRoundRect(color = trackColor, cornerRadius = cornerRadius)
+        drawRoundRect(
+            color = thumbColor,
+            topLeft = Offset(geometry.offset, 0f),
+            size = Size(geometry.length, size.height),
             cornerRadius = cornerRadius,
         )
     }
