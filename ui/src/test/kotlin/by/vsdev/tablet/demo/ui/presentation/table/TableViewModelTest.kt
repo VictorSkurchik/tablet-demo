@@ -2,6 +2,7 @@ package by.vsdev.tablet.demo.ui.presentation.table
 
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.domain.model.TableData
+import by.vsdev.tablet.demo.domain.model.TableDataResult
 import by.vsdev.tablet.demo.domain.repository.TableDataRepository
 import by.vsdev.tablet.demo.domain.usecase.GenerateTableDataUseCase
 import by.vsdev.tablet.demo.domain.util.BackgroundDispatcher
@@ -22,31 +23,60 @@ class TableViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val config = TableConfig(rows = 3, columns = 2)
+    private val successfulRepository =
+        object : TableDataRepository {
+            override suspend fun generate(config: TableConfig): TableDataResult =
+                TableDataResult.Success(successfulTableData(config))
+        }
 
-    private fun viewModel(): TableViewModel {
-        val repository =
-            object : TableDataRepository {
-                override suspend fun generate(config: TableConfig): TableData =
-                    TableData(config, List(config.cellCount) { "c$it" })
-            }
-        return TableViewModel(
+    private fun viewModel(repository: TableDataRepository = successfulRepository): TableViewModel =
+        TableViewModel(
             config = config,
             generateTableData = GenerateTableDataUseCase(repository),
             backgroundDispatcher = BackgroundDispatcher(mainDispatcherRule.dispatcher),
         )
-    }
+
+    @Test
+    fun `failed load exposes retryable error and retry recovers`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            var attempts = 0
+            val repository =
+                object : TableDataRepository {
+                    override suspend fun generate(config: TableConfig): TableDataResult {
+                        attempts++
+                        return if (attempts == 1) {
+                            TableDataResult.GenerationUnavailable
+                        } else {
+                            TableDataResult.Success(successfulTableData(config))
+                        }
+                    }
+                }
+            val viewModel = viewModel(repository)
+
+            advanceUntilIdle()
+
+            assertEquals(TableLoadState.Error, viewModel.state.value.loadState)
+            assertTrue(viewModel.cells.isEmpty())
+
+            viewModel.onIntent(TableIntent.RetryLoad)
+            advanceUntilIdle()
+
+            assertEquals(TableLoadState.Content, viewModel.state.value.loadState)
+            assertEquals(config.cellCount, viewModel.cells.size)
+            assertEquals(2, attempts)
+        }
 
     @Test
     fun `loads the grid off the loading state`() =
         runTest(mainDispatcherRule.dispatcher) {
             val viewModel = viewModel()
 
-            assertTrue(viewModel.state.value.isLoading)
+            assertEquals(TableLoadState.Loading, viewModel.state.value.loadState)
             assertTrue(viewModel.cells.isEmpty())
 
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
+            assertEquals(TableLoadState.Content, viewModel.state.value.loadState)
             assertEquals(config.cellCount, viewModel.cells.size)
             assertEquals("c0", viewModel.cells[0].text)
         }
@@ -119,4 +149,8 @@ class TableViewModelTest {
             assertEquals(originalCells, viewModel.cells.map { it.text to it.isSelected })
             assertNull(viewModel.state.value.editingIndex)
         }
+
+    private companion object {
+        fun successfulTableData(config: TableConfig) = TableData(config, List(config.cellCount) { "c$it" })
+    }
 }

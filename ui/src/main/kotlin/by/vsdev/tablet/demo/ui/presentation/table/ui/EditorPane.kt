@@ -1,10 +1,11 @@
 package by.vsdev.tablet.demo.ui.presentation.table.ui
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,6 +34,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import by.vsdev.tablet.demo.ui.R
@@ -88,7 +91,11 @@ internal fun EditorPane(
                 .padding(AppSpacing.large),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
     ) {
-        Text(stringResource(R.string.editor_title), style = MaterialTheme.typography.titleLarge)
+        Text(
+            stringResource(R.string.editor_title),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.semantics { heading() },
+        )
         EditorControls(
             index = index,
             draft = draft,
@@ -110,7 +117,7 @@ private fun EditorControls(
     onDismiss: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().focusGroup(),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
     ) {
         AppOutlinedTextField(
@@ -135,7 +142,10 @@ private fun EditorControls(
                     .testTag(EDITOR_FIELD_TAG)
                     .focusRequester(focusRequester),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.small)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.small),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.small),
+        ) {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.editor_cancel)) }
             Button(onClick = { onConfirm(index, draft.text.toString()) }) {
                 Text(stringResource(R.string.editor_save))

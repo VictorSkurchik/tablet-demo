@@ -4,7 +4,7 @@
 ![Android](https://img.shields.io/badge/Android-API%2028%2B-3DDC84?logo=android&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2026.06.01-4285F4?logo=jetpackcompose&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.1-02303A?logo=gradle&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-60%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-73%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/Coverage-89%25-brightgreen)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
@@ -82,7 +82,7 @@ The application follows a layered modular structure with dependencies pointing t
 
 ## Testing
 
-The project contains 64 automated scenarios: 47 JVM unit tests, 13 device UI tests, and 4 separately executed macrobenchmark or baseline-profile scenarios. All 60 JVM and UI tests completed successfully on the Medium Tablet API 35 emulator running Android 15.
+The project contains 77 automated scenarios: 50 JVM unit tests, 23 device UI tests, and 4 separately executed macrobenchmark or baseline-profile scenarios. All 73 JVM and UI tests completed successfully on the Medium Tablet API 35 emulator running Android 15.
 
 Implemented test types:
 
@@ -92,6 +92,7 @@ Implemented test types:
 - Unit tests for scroll-thumb geometry
 - Dependency-injection graph verification
 - Compose instrumentation tests for number fields, selectable cells, compact setup validation, and the editor pane
+- Accessibility contracts for localized errors, loading/error announcements, table collection semantics, selection state, gesture alternatives, keyboard traversal, touch targets, contrast, and large font scale
 - Regression tests for keyboard-aware setup content and editor-pane height
 - An end-to-end instrumentation journey covering setup, table creation, selection, and editing
 - Macrobenchmark and baseline-profile scenarios for a maximum-size 1,000 × 6 table
@@ -177,7 +178,7 @@ The following improvements are intentionally outside the current requirements:
 - Persistent storage, import/export, and sharing of table data
 - Undo/redo, copy/paste, bulk selection, sorting, filtering, and search
 - Phone, foldable, multi-window, and desktop layouts
-- Localization and a full accessibility audit for screen readers and alternative input devices
+- Additional locale translations beyond the default English resources
 - Physical-device performance validation and further optimization of large-table scrolling
 - Automated profile regeneration, release signing, and store publishing
 

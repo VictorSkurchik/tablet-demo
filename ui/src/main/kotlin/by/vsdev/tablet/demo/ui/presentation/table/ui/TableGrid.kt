@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,11 +22,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.collectionInfo
@@ -153,10 +162,22 @@ internal fun TableGrid(
     cells: List<CellState>,
     onIntent: (TableIntent) -> Unit,
     modifier: Modifier = Modifier,
+    restoreFocusIndex: Int? = null,
 ) {
     val horizontalScrollState = rememberScrollState()
     val verticalGridState = rememberLazyGridState()
     val cellHeight = selectableCellHeight()
+    val cellFocusRequester = remember { FocusRequester() }
+    var placedRestoreIndex by remember { mutableStateOf<Int?>(null) }
+
+    RestoreCellFocus(
+        index = restoreFocusIndex,
+        placedIndex = placedRestoreIndex,
+        cellCount = cells.size,
+        gridState = verticalGridState,
+        focusRequester = cellFocusRequester,
+        onScrollStarted = { placedRestoreIndex = null },
+    )
 
     Surface(
         modifier = modifier.fillMaxSize().padding(AppSpacing.medium),
@@ -165,56 +186,121 @@ internal fun TableGrid(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         tonalElevation = 1.dp,
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val layout =
-                calculateTableGridLayout(
-                    viewportWidth = maxWidth,
-                    viewportHeight = maxHeight,
-                    columns = columns,
-                    itemCount = cells.size,
-                    cellHeight = cellHeight,
-                )
+        TableGridViewport(
+            columns = columns,
+            cells = cells,
+            cellHeight = cellHeight,
+            verticalGridState = verticalGridState,
+            horizontalScrollState = horizontalScrollState,
+            restoreFocusIndex = restoreFocusIndex,
+            cellFocusRequester = cellFocusRequester,
+            onRestoreTargetPlaced = { placedRestoreIndex = it },
+            onIntent = onIntent,
+        )
+    }
+}
 
-            TableCells(
+@Composable
+private fun TableGridViewport(
+    columns: Int,
+    cells: List<CellState>,
+    cellHeight: Dp,
+    verticalGridState: LazyGridState,
+    horizontalScrollState: androidx.compose.foundation.ScrollState,
+    restoreFocusIndex: Int?,
+    cellFocusRequester: FocusRequester,
+    onRestoreTargetPlaced: (Int) -> Unit,
+    onIntent: (TableIntent) -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val layout =
+            calculateTableGridLayout(
+                viewportWidth = maxWidth,
+                viewportHeight = maxHeight,
                 columns = columns,
-                cells = cells,
+                itemCount = cells.size,
                 cellHeight = cellHeight,
-                state = verticalGridState,
-                startPadding = layout.centeredStartPadding,
-                tableWidth = layout.tableWidth,
-                onIntent = onIntent,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(end = layout.endInset, bottom = layout.bottomInset)
-                        .horizontalScroll(horizontalScrollState),
             )
+        TableCells(
+            columns = columns,
+            cells = cells,
+            cellHeight = cellHeight,
+            state = verticalGridState,
+            startPadding = layout.centeredStartPadding,
+            tableWidth = layout.tableWidth,
+            restoreFocusIndex = restoreFocusIndex,
+            cellFocusRequester = cellFocusRequester,
+            onRestoreTargetPlaced = onRestoreTargetPlaced,
+            onIntent = onIntent,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(end = layout.endInset, bottom = layout.bottomInset)
+                    .horizontalScroll(horizontalScrollState),
+        )
+        TableScrollIndicators(
+            layout = layout,
+            columns = columns,
+            cellCount = cells.size,
+            cellHeight = cellHeight,
+            verticalGridState = verticalGridState,
+            horizontalScrollState = horizontalScrollState,
+        )
+    }
+}
 
-            if (layout.indicatorVisibility.vertical) {
-                VerticalGridScrollIndicator(
-                    state = verticalGridState,
-                    itemCount = cells.size,
-                    columns = columns,
-                    cellHeight = cellHeight,
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(bottom = layout.bottomInset),
-                )
-            }
+@Composable
+private fun BoxWithConstraintsScope.TableScrollIndicators(
+    layout: TableGridLayout,
+    columns: Int,
+    cellCount: Int,
+    cellHeight: Dp,
+    verticalGridState: LazyGridState,
+    horizontalScrollState: androidx.compose.foundation.ScrollState,
+) {
+    if (layout.indicatorVisibility.vertical) {
+        VerticalGridScrollIndicator(
+            state = verticalGridState,
+            itemCount = cellCount,
+            columns = columns,
+            cellHeight = cellHeight,
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(bottom = layout.bottomInset),
+        )
+    }
+    if (layout.indicatorVisibility.horizontal) {
+        HorizontalScrollIndicator(
+            scrollOffset = horizontalScrollState.value,
+            maximumScrollOffset = horizontalScrollState.maxValue,
+            viewportWidth = horizontalScrollState.viewportSize,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(end = layout.endInset),
+        )
+    }
+}
 
-            if (layout.indicatorVisibility.horizontal) {
-                HorizontalScrollIndicator(
-                    scrollOffset = horizontalScrollState.value,
-                    maximumScrollOffset = horizontalScrollState.maxValue,
-                    viewportWidth = horizontalScrollState.viewportSize,
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(end = layout.endInset),
-                )
-            }
-        }
+@Composable
+private fun RestoreCellFocus(
+    index: Int?,
+    placedIndex: Int?,
+    cellCount: Int,
+    gridState: LazyGridState,
+    focusRequester: FocusRequester,
+    onScrollStarted: () -> Unit,
+) {
+    LaunchedEffect(index) {
+        onScrollStarted()
+        val target = index ?: return@LaunchedEffect
+        if (target !in 0 until cellCount) return@LaunchedEffect
+        gridState.scrollToItem(target)
+    }
+    LaunchedEffect(index, placedIndex) {
+        if (index == null || placedIndex != index) return@LaunchedEffect
+        focusRequester.requestFocus()
     }
 }
 
@@ -226,6 +312,9 @@ private fun TableCells(
     state: LazyGridState,
     startPadding: Dp,
     tableWidth: Dp,
+    restoreFocusIndex: Int?,
+    cellFocusRequester: FocusRequester,
+    onRestoreTargetPlaced: (Int) -> Unit,
     onIntent: (TableIntent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -278,10 +367,30 @@ private fun TableCells(
                 cellHeight = cellHeight,
                 onClick = { onIntent(TableIntent.CellClicked(index)) },
                 onDoubleClick = { onIntent(TableIntent.CellDoubleClicked(index)) },
+                modifier =
+                    Modifier.restoreFocusTarget(
+                        index = index,
+                        restoreFocusIndex = restoreFocusIndex,
+                        focusRequester = cellFocusRequester,
+                        onPlaced = onRestoreTargetPlaced,
+                    ),
             )
         }
     }
 }
+
+private fun Modifier.restoreFocusTarget(
+    index: Int,
+    restoreFocusIndex: Int?,
+    focusRequester: FocusRequester,
+    onPlaced: (Int) -> Unit,
+): Modifier =
+    if (index == restoreFocusIndex) {
+        focusRequester(focusRequester)
+            .onGloballyPositioned { onPlaced(index) }
+    } else {
+        this
+    }
 
 @Composable
 private fun VerticalGridScrollIndicator(

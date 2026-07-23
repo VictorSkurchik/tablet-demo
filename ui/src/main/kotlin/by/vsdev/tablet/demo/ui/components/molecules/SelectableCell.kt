@@ -1,18 +1,30 @@
 package by.vsdev.tablet.demo.ui.components.molecules
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -39,6 +51,38 @@ import by.vsdev.tablet.demo.ui.theme.AppTheme
 import by.vsdev.tablet.demo.ui.theme.LocalCellColors
 
 private val MinimumSelectableCellHeight = 56.dp
+private val SelectedIndicatorSpace = 26.dp
+
+private data class SelectableCellStyle(
+    val background: Color,
+    val content: Color,
+    val border: Color,
+    val borderWidth: Dp,
+)
+
+@Composable
+private fun selectableCellStyle(
+    selected: Boolean,
+    focused: Boolean,
+): SelectableCellStyle {
+    val cellColors = LocalCellColors.current
+    return SelectableCellStyle(
+        background = if (selected) cellColors.selected else MaterialTheme.colorScheme.surfaceVariant,
+        content = if (selected) cellColors.onSelected else MaterialTheme.colorScheme.onSurfaceVariant,
+        border =
+            when {
+                focused -> MaterialTheme.colorScheme.primary
+                selected -> cellColors.selected
+                else -> MaterialTheme.colorScheme.outlineVariant
+            },
+        borderWidth =
+            when {
+                focused -> 4.dp
+                selected -> 3.dp
+                else -> 1.dp
+            },
+    )
+}
 
 @Composable
 internal fun selectableCellHeight(): Dp {
@@ -54,6 +98,7 @@ internal fun selectableCellHeight(): Dp {
 private fun CellText(
     text: String,
     color: Color,
+    modifier: Modifier = Modifier,
 ) {
     Text(
         text = text,
@@ -61,7 +106,7 @@ private fun CellText(
         style = MaterialTheme.typography.bodyMedium,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.clearAndSetSemantics { },
+        modifier = modifier.clearAndSetSemantics { },
     )
 }
 
@@ -81,12 +126,18 @@ internal fun SelectableCell(
     modifier: Modifier = Modifier,
     cellHeight: Dp = selectableCellHeight(),
 ) {
-    val cellColors = LocalCellColors.current
     val appHaptics = LocalAppHaptics.current
-    val background = if (selected) cellColors.selected else MaterialTheme.colorScheme.surfaceVariant
-    val contentColor = if (selected) cellColors.onSelected else MaterialTheme.colorScheme.onSurfaceVariant
-    val borderColor = if (selected) cellColors.selected else MaterialTheme.colorScheme.outlineVariant
-    val borderWidth = if (selected) 3.dp else 1.dp
+    val interactionSource = remember { MutableInteractionSource() }
+    var isFocused by remember { mutableStateOf(false) }
+    val style = selectableCellStyle(selected = selected, focused = isFocused)
+    val selectCell = {
+        appHaptics.performCellSelection(isSelected = !selected)
+        onClick()
+    }
+    val editCell = {
+        appHaptics.performCellEdit()
+        onDoubleClick()
+    }
 
     Box(
         modifier =
@@ -94,8 +145,9 @@ internal fun SelectableCell(
                 .fillMaxWidth()
                 .height(cellHeight)
                 .clip(MaterialTheme.shapes.small)
-                .background(background)
-                .border(borderWidth, borderColor, MaterialTheme.shapes.small)
+                .background(style.background)
+                .border(style.borderWidth, style.border, MaterialTheme.shapes.small)
+                .onFocusChanged { isFocused = it.isFocused }
                 .semantics {
                     contentDescription = cellDescription
                     collectionItemInfo = CollectionItemInfo(row, 1, column, 1)
@@ -104,34 +156,65 @@ internal fun SelectableCell(
                     customActions =
                         listOf(
                             CustomAccessibilityAction(editLabel) {
-                                appHaptics.performCellEdit()
-                                onDoubleClick()
+                                editCell()
                                 true
                             },
                         )
-                }.onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyUp && (event.key == Key.Enter || event.key == Key.F2)) {
-                        appHaptics.performCellEdit()
-                        onDoubleClick()
-                        true
-                    } else {
-                        false
-                    }
-                }.combinedClickable(
+                }.cellKeyboardActions(selectCell, editCell)
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current,
                     onClickLabel = toggleLabel,
-                    onClick = {
-                        appHaptics.performCellSelection(isSelected = !selected)
-                        onClick()
-                    },
-                    onDoubleClick = {
-                        appHaptics.performCellEdit()
-                        onDoubleClick()
-                    },
+                    onClick = selectCell,
+                    onDoubleClick = editCell,
                 ).padding(horizontal = AppSpacing.small),
         contentAlignment = Alignment.Center,
     ) {
-        CellText(text = text, color = contentColor)
+        CellText(
+            text = text,
+            color = style.content,
+            modifier = Modifier.padding(horizontal = SelectedIndicatorSpace),
+        )
+        if (selected) SelectedIndicator(style.content)
     }
+}
+
+private fun Modifier.cellKeyboardActions(
+    onSelect: () -> Unit,
+    onEdit: () -> Unit,
+): Modifier =
+    onPreviewKeyEvent { event ->
+        when {
+            event.type == KeyEventType.KeyUp && event.key == Key.F2 -> {
+                onEdit()
+                true
+            }
+
+            event.type == KeyEventType.KeyUp &&
+                (event.key == Key.Enter || event.key == Key.DirectionCenter) -> {
+                onSelect()
+                true
+            }
+
+            event.type == KeyEventType.KeyDown &&
+                (event.key == Key.Enter || event.key == Key.DirectionCenter || event.key == Key.F2) -> true
+
+            else -> false
+        }
+    }
+
+@Composable
+private fun BoxScope.SelectedIndicator(color: Color) {
+    Icon(
+        imageVector = Icons.Default.Check,
+        contentDescription = null,
+        tint = color,
+        modifier =
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+                .size(18.dp),
+    )
 }
 
 @Preview
