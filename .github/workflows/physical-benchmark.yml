@@ -1,0 +1,65 @@
+name: Physical tablet benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      device_serial:
+        description: ADB serial of the dedicated physical tablet
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: physical-tablet-benchmark
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: physical-tablet-benchmark
+    runs-on:
+      - self-hosted
+      - android
+      - physical-tablet
+    timeout-minutes: 60
+    env:
+      ANDROID_SERIAL: ${{ inputs.device_serial }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Verify dedicated device
+        run: |
+          test "$(adb -s "${ANDROID_SERIAL}" get-state)" = "device"
+          case "$(adb -s "${ANDROID_SERIAL}" shell getprop ro.build.characteristics)" in
+            *tablet*) ;;
+            *) echo "ANDROID_SERIAL is not a tablet" >&2; exit 1 ;;
+          esac
+
+      - name: Run macrobenchmarks
+        run: >-
+          ./gradlew
+          :benchmark:connectedBenchmarkReleaseAndroidTest
+          -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.enabledRules=Macrobenchmark
+          --stacktrace
+
+      - name: Upload benchmark reports and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: physical-tablet-benchmark-results
+          path: |
+            benchmark/build/outputs/
+            benchmark/build/reports/androidTests/
+          if-no-files-found: error

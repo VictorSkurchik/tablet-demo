@@ -1,16 +1,16 @@
 package by.vsdev.tablet.demo.ui.presentation.table
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
 import by.vsdev.tablet.demo.domain.model.TableConfig
+import by.vsdev.tablet.demo.domain.model.TableDataResult
 import by.vsdev.tablet.demo.domain.usecase.GenerateTableDataUseCase
 import by.vsdev.tablet.demo.domain.util.BackgroundDispatcher
 import by.vsdev.tablet.demo.recovery.TableRecoveryRepository
 import by.vsdev.tablet.demo.recovery.model.RecoveredCell
 import by.vsdev.tablet.demo.recovery.model.TableRecoverySnapshot
 import by.vsdev.tablet.demo.ui.mvi.MviViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -21,9 +21,7 @@ internal class TableViewModel(
     private val recoveryRepository: TableRecoveryRepository,
     private val backgroundDispatcher: BackgroundDispatcher,
 ) : MviViewModel<TableUiState, TableIntent>(TableUiState(config = config)) {
-    var cells: List<CellState> by mutableStateOf(emptyList())
-        private set
-
+    private var loadJob: Job? = null
     private var recoveryCells: MutableList<RecoveredCell> = mutableListOf()
     private val recoveryCoordinator =
         TableRecoveryCoordinator(
@@ -34,65 +32,111 @@ internal class TableViewModel(
         )
 
     init {
-        viewModelScope.launch {
-            val restored = recoveryRepository.load(sessionId)
-            if (restored?.config == config) {
-                restore(restored)
-            } else {
-                if (restored != null) recoveryRepository.delete(sessionId)
-                generate()
-            }
-            setState { copy(isLoading = false) }
-            recoveryCoordinator.markDirty()
-        }
+        load()
     }
 
     override fun onIntent(intent: TableIntent) {
         when (intent) {
-            is TableIntent.CellClicked -> toggleColor(intent.index)
+            is TableIntent.CellClicked ->
+                updateCell(intent.index) {
+                    copy(isSelected = !isSelected)
+                }
             is TableIntent.CellDoubleClicked -> openEditor(intent.index)
             is TableIntent.EditConfirmed -> confirmEdit(intent.index, intent.text)
-            is TableIntent.EditorDraftChanged -> updateEditorDraft(intent.text)
+            is TableIntent.EditorDraftChanged -> {
+                if (state.value.editingIndex != null) {
+                    setState { copy(editorDraft = intent.text.take(MAX_CELL_TEXT_LENGTH)) }
+                    recoveryCoordinator.markDirty()
+                }
+            }
             TableIntent.AppBackgrounded -> recoveryCoordinator.flush()
             TableIntent.EditDismissed -> dismissEditor()
+            TableIntent.RetryLoad -> load()
         }
     }
 
     fun closeSession(onClosed: () -> Unit) = recoveryCoordinator.close(onClosed)
 
-    private suspend fun generate() {
-        val data = generateTableData(config)
-        val recovered =
-            withContext(backgroundDispatcher.value) {
-                data.cells.map { RecoveredCell(text = it, isSelected = false) }
+    private fun load() {
+        loadJob?.cancel()
+        setState {
+            copy(
+                loadState = TableLoadState.Loading,
+                editingIndex = null,
+                editorDraft = null,
+            )
+        }
+        loadJob =
+            viewModelScope.launch {
+                try {
+                    val restored = recoveryRepository.load(sessionId)
+                    if (restored?.config == config) {
+                        restore(restored)
+                    } else {
+                        if (restored != null) recoveryRepository.delete(sessionId)
+                        generate()
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    showLoadError()
+                }
             }
-        recoveryCells = recovered.toMutableList()
-        cells = recovered.map { CellState(text = it.text) }
+    }
+
+    private suspend fun generate() {
+        when (val result = generateTableData(config)) {
+            is TableDataResult.Success -> {
+                val recovered =
+                    withContext(backgroundDispatcher.value) {
+                        result.data.cells.map { RecoveredCell(text = it, isSelected = false) }
+                    }
+                recoveryCells = recovered.toMutableList()
+                setState {
+                    copy(
+                        loadState =
+                            TableLoadState.Content(
+                                recovered.map { CellUiState(text = it.text) },
+                            ),
+                    )
+                }
+                recoveryCoordinator.markDirty()
+            }
+
+            TableDataResult.GenerationUnavailable -> showLoadError()
+        }
     }
 
     private fun restore(snapshot: TableRecoverySnapshot) {
         recoveryCells = snapshot.cells.toMutableList()
-        cells =
-            recoveryCells.map { cell ->
-                CellState(text = cell.text, isSelected = cell.isSelected)
-            }
         setState {
             copy(
+                loadState =
+                    TableLoadState.Content(
+                        snapshot.cells.map {
+                            CellUiState(text = it.text, isSelected = it.isSelected)
+                        },
+                    ),
                 editingIndex = snapshot.editingIndex,
                 editorDraft = snapshot.editorDraft,
             )
         }
-    }
-
-    private fun toggleColor(index: Int) {
-        val cell = cells.getOrNull(index) ?: return
-        cell.toggleSelection()
-        recoveryCells[index] = recoveryCells[index].copy(isSelected = cell.isSelected)
         recoveryCoordinator.markDirty()
     }
 
+    private fun showLoadError() {
+        recoveryCells.clear()
+        setState {
+            copy(
+                loadState = TableLoadState.Error,
+                editingIndex = null,
+                editorDraft = null,
+            )
+        }
+    }
+
     private fun openEditor(index: Int) {
-        val cell = cells.getOrNull(index) ?: return
+        val cell = state.value.cells.getOrNull(index) ?: return
         setState { copy(editingIndex = index, editorDraft = cell.text) }
         recoveryCoordinator.markDirty()
     }
@@ -101,22 +145,37 @@ internal class TableViewModel(
         index: Int,
         text: String,
     ) {
-        val cell = cells.getOrNull(index) ?: return
-        cell.updateText(text)
-        recoveryCells[index] = recoveryCells[index].copy(text = cell.text)
-        dismissEditor()
-    }
-
-    private fun updateEditorDraft(text: String) {
-        if (state.value.editingIndex == null) return
-        setState { copy(editorDraft = text.take(MAX_CELL_TEXT_LENGTH)) }
-        recoveryCoordinator.markDirty()
+        if (updateCell(index) { copy(text = text.take(MAX_CELL_TEXT_LENGTH)) }) {
+            dismissEditor()
+        }
     }
 
     private fun dismissEditor() {
         if (state.value.editingIndex == null) return
         setState { copy(editingIndex = null, editorDraft = null) }
         recoveryCoordinator.markDirty()
+    }
+
+    private fun updateCell(
+        index: Int,
+        transform: CellUiState.() -> CellUiState,
+    ): Boolean {
+        val content = state.value.loadState as? TableLoadState.Content
+        val cell = content?.cells?.getOrNull(index)
+        val wasUpdated = content != null && cell != null
+        if (content != null && cell != null) {
+            val updatedCell = cell.transform()
+            val updatedCells = content.cells.toMutableList()
+            updatedCells[index] = updatedCell
+            recoveryCells[index] =
+                RecoveredCell(
+                    text = updatedCell.text,
+                    isSelected = updatedCell.isSelected,
+                )
+            setState { copy(loadState = TableLoadState.Content(updatedCells)) }
+            recoveryCoordinator.markDirty()
+        }
+        return wasUpdated
     }
 
     private fun currentSnapshot(): TableRecoverySnapshot =

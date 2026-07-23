@@ -2,6 +2,7 @@ package by.vsdev.tablet.demo.ui.presentation.table
 
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.domain.model.TableData
+import by.vsdev.tablet.demo.domain.model.TableDataResult
 import by.vsdev.tablet.demo.domain.repository.TableDataRepository
 import by.vsdev.tablet.demo.domain.usecase.GenerateTableDataUseCase
 import by.vsdev.tablet.demo.domain.util.BackgroundDispatcher
@@ -10,6 +11,7 @@ import by.vsdev.tablet.demo.recovery.model.RecoveredCell
 import by.vsdev.tablet.demo.recovery.model.TableRecoverySnapshot
 import by.vsdev.tablet.demo.ui.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -28,21 +30,23 @@ class TableViewModelTest {
 
     private val config = TableConfig(rows = 3, columns = 2)
     private val recoveryRepository = FakeRecoveryRepository()
+    private val successfulRepository =
+        object : TableDataRepository {
+            override suspend fun generate(config: TableConfig): TableDataResult =
+                TableDataResult.Success(successfulTableData(config))
+        }
 
-    private fun viewModel(sessionId: String = "session"): TableViewModel {
-        val repository =
-            object : TableDataRepository {
-                override suspend fun generate(config: TableConfig): TableData =
-                    TableData(config, List(config.cellCount) { "c$it" })
-            }
-        return TableViewModel(
+    private fun viewModel(
+        repository: TableDataRepository = successfulRepository,
+        sessionId: String = "session",
+    ): TableViewModel =
+        TableViewModel(
             config = config,
             sessionId = sessionId,
             generateTableData = GenerateTableDataUseCase(repository),
             recoveryRepository = recoveryRepository,
             backgroundDispatcher = BackgroundDispatcher(mainDispatcherRule.dispatcher),
         )
-    }
 
     @Test
     fun `loads the grid off the loading state`() =
@@ -50,13 +54,20 @@ class TableViewModelTest {
             val viewModel = viewModel()
 
             assertTrue(viewModel.state.value.isLoading)
-            assertTrue(viewModel.cells.isEmpty())
+            assertTrue(
+                viewModel.state.value.cells
+                    .isEmpty(),
+            )
 
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
-            assertEquals(config.cellCount, viewModel.cells.size)
-            assertEquals("c0", viewModel.cells[0].text)
+            assertEquals(config.cellCount, viewModel.state.value.cells.size)
+            assertEquals(
+                "c0",
+                viewModel.state.value.cells[0]
+                    .text,
+            )
         }
 
     @Test
@@ -66,10 +77,16 @@ class TableViewModelTest {
             advanceUntilIdle()
 
             viewModel.onIntent(TableIntent.CellClicked(0))
-            assertTrue(viewModel.cells[0].isSelected)
+            assertTrue(
+                viewModel.state.value.cells[0]
+                    .isSelected,
+            )
 
             viewModel.onIntent(TableIntent.CellClicked(0))
-            assertFalse(viewModel.cells[0].isSelected)
+            assertFalse(
+                viewModel.state.value.cells[0]
+                    .isSelected,
+            )
         }
 
     @Test
@@ -82,7 +99,11 @@ class TableViewModelTest {
             assertEquals(2, viewModel.state.value.editingIndex)
 
             viewModel.onIntent(TableIntent.EditConfirmed(2, "edited"))
-            assertEquals("edited", viewModel.cells[2].text)
+            assertEquals(
+                "edited",
+                viewModel.state.value.cells[2]
+                    .text,
+            )
             assertNull(viewModel.state.value.editingIndex)
         }
 
@@ -95,8 +116,16 @@ class TableViewModelTest {
 
             viewModel.onIntent(TableIntent.EditConfirmed(2, oversizedText))
 
-            assertEquals(MAX_CELL_TEXT_LENGTH, viewModel.cells[2].text.length)
-            assertEquals(oversizedText.take(MAX_CELL_TEXT_LENGTH), viewModel.cells[2].text)
+            assertEquals(
+                MAX_CELL_TEXT_LENGTH,
+                viewModel.state.value.cells[2]
+                    .text.length,
+            )
+            assertEquals(
+                oversizedText.take(MAX_CELL_TEXT_LENGTH),
+                viewModel.state.value.cells[2]
+                    .text,
+            )
         }
 
     @Test
@@ -104,13 +133,19 @@ class TableViewModelTest {
         runTest(mainDispatcherRule.dispatcher) {
             val viewModel = viewModel()
             advanceUntilIdle()
-            val original = viewModel.cells[1].text
+            val original =
+                viewModel.state.value.cells[1]
+                    .text
 
             viewModel.onIntent(TableIntent.CellDoubleClicked(1))
             viewModel.onIntent(TableIntent.EditDismissed)
 
             assertNull(viewModel.state.value.editingIndex)
-            assertEquals(original, viewModel.cells[1].text)
+            assertEquals(
+                original,
+                viewModel.state.value.cells[1]
+                    .text,
+            )
         }
 
     @Test
@@ -118,13 +153,13 @@ class TableViewModelTest {
         runTest(mainDispatcherRule.dispatcher) {
             val viewModel = viewModel()
             advanceUntilIdle()
-            val originalCells = viewModel.cells.map { it.text to it.isSelected }
+            val originalCells = viewModel.state.value.cells
 
             viewModel.onIntent(TableIntent.CellClicked(-1))
             viewModel.onIntent(TableIntent.CellDoubleClicked(config.cellCount))
             viewModel.onIntent(TableIntent.EditConfirmed(config.cellCount, "edited"))
 
-            assertEquals(originalCells, viewModel.cells.map { it.text to it.isSelected })
+            assertEquals(originalCells, viewModel.state.value.cells)
             assertNull(viewModel.state.value.editingIndex)
         }
 
@@ -142,9 +177,20 @@ class TableViewModelTest {
             val restored = viewModel()
             advanceUntilIdle()
 
-            assertEquals("c0", restored.cells[0].text)
-            assertTrue(restored.cells[1].isSelected)
-            assertEquals("edited", restored.cells[2].text)
+            assertEquals(
+                "c0",
+                restored.state.value.cells[0]
+                    .text,
+            )
+            assertTrue(
+                restored.state.value.cells[1]
+                    .isSelected,
+            )
+            assertEquals(
+                "edited",
+                restored.state.value.cells[2]
+                    .text,
+            )
             assertEquals(3, restored.state.value.editingIndex)
             assertEquals("unfinished draft", restored.state.value.editorDraft)
         }
@@ -164,8 +210,12 @@ class TableViewModelTest {
             val viewModel = viewModel()
             advanceUntilIdle()
 
-            assertEquals(config.cellCount, viewModel.cells.size)
-            assertEquals("c0", viewModel.cells[0].text)
+            assertEquals(config.cellCount, viewModel.state.value.cells.size)
+            assertEquals(
+                "c0",
+                viewModel.state.value.cells[0]
+                    .text,
+            )
         }
 
     @Test
@@ -269,5 +319,99 @@ class TableViewModelTest {
         }
 
         override suspend fun cleanupExpired(): Boolean = true
+    }
+
+    @Test
+    fun `unavailable generation exposes retryable error and retry recovers`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            var attempts = 0
+            val repository =
+                object : TableDataRepository {
+                    override suspend fun generate(config: TableConfig): TableDataResult {
+                        attempts++
+                        return if (attempts == 1) {
+                            TableDataResult.GenerationUnavailable
+                        } else {
+                            TableDataResult.Success(successfulTableData(config))
+                        }
+                    }
+                }
+            val viewModel = viewModel(repository)
+
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.hasLoadError)
+
+            viewModel.onIntent(TableIntent.RetryLoad)
+            advanceUntilIdle()
+
+            assertEquals(2, attempts)
+            assertFalse(viewModel.state.value.hasLoadError)
+            assertEquals(config.cellCount, viewModel.state.value.cells.size)
+        }
+
+    @Test
+    fun `unexpected generation failure exposes an error and retry recovers`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            var attempts = 0
+            val repository =
+                object : TableDataRepository {
+                    override suspend fun generate(config: TableConfig): TableDataResult {
+                        attempts++
+                        check(attempts > 1) { "synthetic generation failure" }
+                        return TableDataResult.Success(successfulTableData(config))
+                    }
+                }
+            val viewModel = viewModel(repository)
+
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.hasLoadError)
+
+            viewModel.onIntent(TableIntent.RetryLoad)
+            advanceUntilIdle()
+
+            assertEquals(2, attempts)
+            assertFalse(viewModel.state.value.hasLoadError)
+        }
+
+    @Test
+    fun `retry cancels in-flight generation before starting a replacement`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            var attempts = 0
+            var cancellations = 0
+            val repository =
+                object : TableDataRepository {
+                    override suspend fun generate(config: TableConfig): TableDataResult {
+                        attempts++
+                        if (attempts == 1) {
+                            try {
+                                awaitCancellation()
+                            } finally {
+                                cancellations++
+                            }
+                        }
+                        return TableDataResult.Success(successfulTableData(config, "replacement-"))
+                    }
+                }
+            val viewModel = viewModel(repository)
+            runCurrent()
+
+            viewModel.onIntent(TableIntent.RetryLoad)
+            advanceUntilIdle()
+
+            assertEquals(2, attempts)
+            assertEquals(1, cancellations)
+            assertEquals(
+                "replacement-0",
+                viewModel.state.value.cells
+                    .first()
+                    .text,
+            )
+        }
+
+    private companion object {
+        fun successfulTableData(
+            config: TableConfig,
+            prefix: String = "c",
+        ) = TableData(config, List(config.cellCount) { "$prefix$it" })
     }
 }

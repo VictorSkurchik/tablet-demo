@@ -4,8 +4,8 @@
 ![Android](https://img.shields.io/badge/Android-API%2028%2B-3DDC84?logo=android&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2026.06.01-4285F4?logo=jetpackcompose&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.1-02303A?logo=gradle&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-60%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/Coverage-89%25-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-78%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/Line%20coverage-91.9%25-brightgreen)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 Tablet Demo is a tablet-only Android application for generating, exploring, selecting, and editing a table of random string values. The project is implemented with Jetpack Compose and split into UI, domain, and data layers.
@@ -71,7 +71,7 @@ The application follows a layered modular structure with dependencies pointing t
 - Jetpack Compose with the Compose BOM 2026.06.01
 - Material 3 and Material 3 Adaptive supporting-pane layouts
 - Navigation Compose with type-safe serializable destinations
-- Kotlin coroutines and `StateFlow`
+- Kotlin coroutines, structured cancellation, and a single immutable `StateFlow` MVI state
 - Koin for dependency injection
 - JUnit 4, Turbine, Compose UI Test, Espresso 3.7.0, and UI Automator
 - JaCoCo for combined JVM and device-test coverage
@@ -82,32 +82,42 @@ The application follows a layered modular structure with dependencies pointing t
 
 ## Testing
 
-The project contains 64 automated scenarios: 47 JVM unit tests, 13 device UI tests, and 4 separately executed macrobenchmark or baseline-profile scenarios. All 60 JVM and UI tests completed successfully on the Medium Tablet API 35 emulator running Android 15.
+The project contains 83 automated scenarios: 52 JVM unit tests, 26 device UI tests, and 5 separately executed macrobenchmark or baseline-profile scenarios. All 78 JVM and UI tests are enforced by the build.
 
 Implemented test types:
 
 - Domain unit tests for table models, validation rules, and generation use cases
 - Data unit tests for random strings and repository behavior
-- View-model unit tests for setup validation, table loading, selection, and editing
+- View-model unit tests for setup validation, table loading, failure/retry, in-flight
+  cancellation, selection, and editing
 - Unit tests for scroll-thumb geometry
 - Dependency-injection graph verification
-- Compose instrumentation tests for number fields, selectable cells, compact setup validation, and the editor pane
+- Compose instrumentation tests for number fields, mouse/touch and Enter/F2 cell
+  interaction, compact setup validation, and the editor pane
+- Accessibility contracts for localized errors, loading/error announcements, table collection semantics, selection state, gesture alternatives, keyboard traversal, touch targets, contrast, and large font scale
 - Regression tests for keyboard-aware setup content and editor-pane height
-- An end-to-end instrumentation journey covering setup, table creation, selection, and editing
+- End-to-end instrumentation journeys covering setup, table creation, selection,
+  editing, localization, and access to the final cell of a 1,000 × 6 table
 - Macrobenchmark and baseline-profile scenarios for a maximum-size 1,000 × 6 table
 
-Run all JVM and connected-device tests and generate the combined report:
+Run all JVM and connected-device tests and enforce the combined coverage floors:
 
 ```bash
-./gradlew coverageReport
+./gradlew coverageVerification
 ```
 
 ### Continuous integration
 
 The [CI workflow](./.github/workflows/ci.yml) runs for pull requests and pushes targeting `develop` or `main`, and can also be started manually. It reports two independent checks:
 
-- `quality` runs KtLint, Detekt, and all JVM unit tests.
-- `android-ui-tests` runs the application and UI instrumentation suites on an Android 15 Pixel Tablet emulator.
+- `quality` runs KtLint, Detekt, all JVM unit tests, Android Lint, release R8
+  verification, and checks that the APK/AAB contain a Baseline Profile.
+- `android-ui-tests` runs the application and UI instrumentation suites on an
+  Android 15 Pixel Tablet emulator and enforces the combined coverage floors.
+
+The scheduled `baseline-profile` workflow regenerates profiles and fails on a
+stale checked-in result. The manually dispatched `physical-benchmark` workflow
+runs macrobenchmarks on a dedicated self-hosted tablet.
 
 Both checks should be required by the `main` branch ruleset before merging.
 
@@ -117,11 +127,14 @@ The generated report is available at `build/reports/jacoco/coverageReport/html/i
 
 | Coverage metric | Result |
 | --- | ---: |
-| Instructions | 89.0% (7,232 / 8,122) |
-| Lines | 89.2% (914 / 1,025) |
-| Branches | 74.0% (313 / 423) |
-| Methods | 85.2% (231 / 271) |
-| Classes | 96.9% (62 / 64) |
+| Instructions | 91.31% |
+| Lines | 91.88% |
+| Branches | 79.68% |
+| Methods | 88.54% |
+| Classes | 98.57% |
+
+The build fails below 87% instructions, 73% branches, 88% lines, 84% methods,
+or 96% classes.
 
 <p align="center">
   <img src="./docs/screenshots/test-coverage.png" alt="Combined JaCoCo coverage summary" width="100%">
@@ -162,11 +175,18 @@ The release-like build uses R8, resource shrinking, `CompilationMode.Partial`, t
 | CPU frame duration | 18.1 ms | 39.0 ms | 41.7 ms | 156.3 ms |
 | Frame overrun | 3.5 ms | 34.5 ms | 39.4 ms | 151.3 ms |
 
-Run the startup benchmark with:
+Regenerate the checked-in Baseline and Startup Profiles with:
 
 ```bash
-./gradlew :benchmark:connectedBenchmarkAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=by.vsdev.tablet.demo.benchmark.TableMacrobenchmark#setupScreenColdStartup
+./gradlew :app:generateReleaseBaselineProfile \
+  -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.enabledRules=BaselineProfile
+```
+
+Run all macrobenchmarks on a connected tablet with:
+
+```bash
+./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.enabledRules=Macrobenchmark
 ```
 
 ## Out of Scope
@@ -177,9 +197,7 @@ The following improvements are intentionally outside the current requirements:
 - Persistent storage, import/export, and sharing of table data
 - Undo/redo, copy/paste, bulk selection, sorting, filtering, and search
 - Phone, foldable, multi-window, and desktop layouts
-- Localization and a full accessibility audit for screen readers and alternative input devices
-- Physical-device performance validation and further optimization of large-table scrolling
-- Automated profile regeneration, release signing, and store publishing
+- Release signing and store publishing
 
 ## Git workflow
 
@@ -210,7 +228,13 @@ Build the unsigned release APK and the optimized benchmark APK:
 Run static analysis:
 
 ```bash
-./gradlew ktlintCheck detekt
+./gradlew ktlintCheck detekt lint
+```
+
+Build and validate the release APK, AAB, R8 mapping, and packaged profile:
+
+```bash
+./gradlew :app:verifyReleaseArtifacts
 ```
 
 ## License

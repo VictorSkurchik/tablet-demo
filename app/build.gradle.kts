@@ -1,5 +1,8 @@
+import java.util.zip.ZipFile
+
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.androidx.baselineprofile)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -47,9 +50,8 @@ android {
         }
         release {
             versionNameSuffix = "-release"
-            optimization {
-                enable = true
-            }
+            isMinifyEnabled = true
+            isShrinkResources = true
         }
         create("benchmark") {
             initWith(getByName("release"))
@@ -71,6 +73,8 @@ kotlin {
 }
 
 dependencies {
+    baselineProfile(project(":benchmark"))
+
     implementation(project(":ui"))
     implementation(project(":domain"))
     implementation(project(":data"))
@@ -97,4 +101,49 @@ dependencies {
     testImplementation(libs.androidx.lifecycle.viewmodel.savedstate)
     testImplementation(libs.junit)
     testImplementation(libs.koin.test)
+}
+
+tasks.register("verifyReleaseArtifacts") {
+    group = "verification"
+    description = "Builds release artifacts and verifies R8 mapping and packaged Baseline Profiles."
+    dependsOn("assembleRelease", "bundleRelease")
+    inputs
+        .files(
+            layout.buildDirectory.file("outputs/apk/release/app-release-unsigned.apk"),
+            layout.buildDirectory.file("outputs/bundle/release/app-release.aab"),
+            layout.buildDirectory.file("outputs/mapping/release/mapping.txt"),
+        ).withPropertyName("releaseArtifacts")
+
+    doLast {
+        val artifacts = inputs.files.files
+        val releaseApk = checkNotNull(artifacts.singleOrNull { it.extension == "apk" })
+        val releaseBundle = checkNotNull(artifacts.singleOrNull { it.extension == "aab" })
+        val mapping = checkNotNull(artifacts.singleOrNull { it.name == "mapping.txt" })
+
+        check(releaseApk.isFile && releaseApk.length() > 0L) {
+            "Release APK was not produced: $releaseApk"
+        }
+        check(releaseBundle.isFile && releaseBundle.length() > 0L) {
+            "Release AAB was not produced: $releaseBundle"
+        }
+        check(mapping.isFile && mapping.length() > 0L) {
+            "R8 mapping was not produced: $mapping"
+        }
+        check(
+            ZipFile(releaseApk).use {
+                it.getEntry("assets/dexopt/baseline.prof") != null
+            },
+        ) {
+            "Release APK does not contain assets/dexopt/baseline.prof"
+        }
+        check(
+            ZipFile(releaseBundle).use {
+                it.getEntry(
+                    "BUNDLE-METADATA/com.android.tools.build.profiles/baseline.prof",
+                ) != null
+            },
+        ) {
+            "Release AAB does not contain a Baseline Profile"
+        }
+    }
 }
