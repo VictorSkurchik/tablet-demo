@@ -101,6 +101,15 @@ Run all JVM and connected-device tests and generate the combined report:
 ./gradlew coverageReport
 ```
 
+### Continuous integration
+
+The [CI workflow](./.github/workflows/ci.yml) runs for pull requests and pushes targeting `develop` or `main`, and can also be started manually. It reports two independent checks:
+
+- `quality` runs KtLint, Detekt, and all JVM unit tests.
+- `android-ui-tests` runs the application and UI instrumentation suites on an Android 15 Pixel Tablet emulator.
+
+Both checks should be required by the `main` branch ruleset before merging.
+
 ### Coverage
 
 The generated report is available at `build/reports/jacoco/coverageReport/html/index.html`.
@@ -169,7 +178,7 @@ The following improvements are intentionally outside the current requirements:
 - Phone, foldable, multi-window, and desktop layouts
 - Localization and a full accessibility audit for screen readers and alternative input devices
 - Physical-device performance validation and further optimization of large-table scrolling
-- Automated profile regeneration, release signing, store publishing, and CI/CD delivery
+- Automated profile regeneration, release signing, and store publishing
 
 ## Git workflow
 
@@ -179,7 +188,7 @@ The project uses a feature-based Git Flow:
 2. Keep commits focused and use Conventional Commits.
 3. Push the feature branch and merge it into `develop` with a dedicated merge commit.
 4. Verify and push `develop`.
-5. Merge `develop` into `main` with a dedicated release merge commit, then push `main`.
+5. Open a pull request from `develop` to `main` and merge it after the required CI checks pass.
 
 Feature branches are never merged directly into `main`, and shared branches must not be force-pushed.
 
