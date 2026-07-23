@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -21,14 +22,17 @@ import by.vsdev.tablet.demo.ui.theme.AppSpacing
 internal fun ResponsiveFormContainer(
     modifier: Modifier = Modifier,
     maxWidth: Dp = 480.dp,
+    contentPadding: Dp = AppSpacing.large,
+    verticalSpacing: Dp = AppSpacing.medium,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Box(
         modifier =
             modifier
                 .fillMaxSize()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(AppSpacing.large),
+                .padding(contentPadding),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -36,7 +40,7 @@ internal fun ResponsiveFormContainer(
                 Modifier
                     .widthIn(max = maxWidth)
                     .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
+            verticalArrangement = Arrangement.spacedBy(verticalSpacing),
             content = content,
         )
     }
