@@ -70,7 +70,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Install compile SDK
-        run: sdkmanager "platforms;android-37.1"
+        run: >-
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          --sdk_root="${ANDROID_HOME}"
+          "platforms;android-37.1"
 
       - name: Enable KVM
         run: |
