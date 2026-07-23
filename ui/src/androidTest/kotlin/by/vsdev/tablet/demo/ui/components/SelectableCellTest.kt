@@ -12,6 +12,8 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import by.vsdev.tablet.demo.ui.components.molecules.SelectableCell
+import by.vsdev.tablet.demo.ui.haptics.AppHaptics
+import by.vsdev.tablet.demo.ui.haptics.LocalAppHaptics
 import by.vsdev.tablet.demo.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -24,21 +26,24 @@ class SelectableCellTest {
     @Test
     fun selectedCell_exposesStateAndClickAction() {
         var clicks = 0
+        val haptics = RecordingAppHaptics()
         composeRule.setContent {
             AppTheme {
-                SelectableCell(
-                    text = "Cell value",
-                    selected = true,
-                    row = 0,
-                    column = 1,
-                    cellDescription = "Row 1, column 2: Cell value",
-                    selectedDescription = "Selected",
-                    notSelectedDescription = "Not selected",
-                    toggleLabel = "Toggle cell color",
-                    editLabel = "Edit cell",
-                    onClick = { clicks++ },
-                    onDoubleClick = {},
-                )
+                CompositionLocalProvider(LocalAppHaptics provides haptics) {
+                    SelectableCell(
+                        text = "Cell value",
+                        selected = true,
+                        row = 0,
+                        column = 1,
+                        cellDescription = "Row 1, column 2: Cell value",
+                        selectedDescription = "Selected",
+                        notSelectedDescription = "Not selected",
+                        toggleLabel = "Toggle cell color",
+                        editLabel = "Edit cell",
+                        onClick = { clicks++ },
+                        onDoubleClick = {},
+                    )
+                }
             }
         }
 
@@ -48,27 +53,31 @@ class SelectableCellTest {
             .performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { clicks == 1 }
         assertEquals(1, clicks)
+        assertEquals(listOf(false), haptics.selectionStates)
     }
 
     @Test
     fun doubleClick_invokesEditWithoutTogglingSelection() {
         var clicks = 0
         var edits = 0
+        val haptics = RecordingAppHaptics()
         composeRule.setContent {
             AppTheme {
-                SelectableCell(
-                    text = "Cell value",
-                    selected = false,
-                    row = 0,
-                    column = 1,
-                    cellDescription = "Row 1, column 2: Cell value",
-                    selectedDescription = "Selected",
-                    notSelectedDescription = "Not selected",
-                    toggleLabel = "Toggle cell color",
-                    editLabel = "Edit cell",
-                    onClick = { clicks++ },
-                    onDoubleClick = { edits++ },
-                )
+                CompositionLocalProvider(LocalAppHaptics provides haptics) {
+                    SelectableCell(
+                        text = "Cell value",
+                        selected = false,
+                        row = 0,
+                        column = 1,
+                        cellDescription = "Row 1, column 2: Cell value",
+                        selectedDescription = "Selected",
+                        notSelectedDescription = "Not selected",
+                        toggleLabel = "Toggle cell color",
+                        editLabel = "Edit cell",
+                        onClick = { clicks++ },
+                        onDoubleClick = { edits++ },
+                    )
+                }
             }
         }
 
@@ -79,6 +88,8 @@ class SelectableCellTest {
         composeRule.runOnIdle {
             assertEquals(0, clicks)
             assertEquals(1, edits)
+            assertEquals(emptyList<Boolean>(), haptics.selectionStates)
+            assertEquals(1, haptics.editCount)
         }
     }
 
@@ -105,5 +116,18 @@ class SelectableCellTest {
         }
 
         composeRule.onNodeWithContentDescription("Large text cell").assertHeightIsAtLeast(76.dp)
+    }
+
+    private class RecordingAppHaptics : AppHaptics {
+        val selectionStates = mutableListOf<Boolean>()
+        var editCount = 0
+
+        override fun performCellSelection(isSelected: Boolean) {
+            selectionStates += isSelected
+        }
+
+        override fun performCellEdit() {
+            editCount++
+        }
     }
 }
