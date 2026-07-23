@@ -2,8 +2,16 @@ package by.vsdev.tablet.demo.ui.presentation.table.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.ReportDrawnWhen
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,8 +32,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.ui.R
@@ -37,6 +47,14 @@ import by.vsdev.tablet.demo.ui.presentation.table.TableViewModel
 import by.vsdev.tablet.demo.ui.theme.AppTheme
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+
+private const val EDITOR_RESIZE_ANIMATION_DURATION_MILLIS = 350
+
+internal fun calculateEditorPaneTargetHeight(
+    shouldExpand: Boolean,
+    maxHeight: Dp,
+    defaultHeight: Dp,
+): Dp = if (shouldExpand) maxHeight * 0.5f else defaultHeight
 
 @Composable
 fun TableRoute(
@@ -56,7 +74,7 @@ fun TableRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 internal fun TableScreen(
     state: TableUiState,
@@ -66,6 +84,8 @@ internal fun TableScreen(
     modifier: Modifier = Modifier,
 ) {
     val navigator = rememberSupportingPaneScaffoldNavigator()
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    val isOnScreenKeyboardVisible = WindowInsets.isImeVisible
 
     LaunchedEffect(state.editingIndex) {
         val supportingHidden =
@@ -91,32 +111,55 @@ internal fun TableScreen(
             )
         },
     ) { innerPadding ->
-        SupportingPaneScaffold(
-            modifier = Modifier.padding(innerPadding),
-            directive = navigator.scaffoldDirective,
-            value = navigator.scaffoldValue,
-            mainPane = {
-                AnimatedPane {
-                    TableMainPane(
-                        isLoading = state.isLoading,
-                        columns = state.config.columns,
-                        cells = cells,
-                        onIntent = onIntent,
-                    )
-                }
-            },
-            supportingPane = {
-                AnimatedPane {
-                    val index = state.editingIndex
-                    EditorPane(
-                        index = index,
-                        currentText = index?.let { cells.getOrNull(it)?.text },
-                        onConfirm = { i, text -> onIntent(TableIntent.EditConfirmed(i, text)) },
-                        onDismiss = { onIntent(TableIntent.EditDismissed) },
-                    )
-                }
-            },
-        )
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            val shouldExpandEditor =
+                state.editingIndex != null &&
+                    isOnScreenKeyboardVisible &&
+                    imeBottom > 0
+            val editorPaneHeight by
+                animateDpAsState(
+                    targetValue =
+                        calculateEditorPaneTargetHeight(
+                            shouldExpand = shouldExpandEditor,
+                            maxHeight = maxHeight,
+                            defaultHeight =
+                                navigator.scaffoldDirective.defaultPanePreferredHeight,
+                        ),
+                    animationSpec =
+                        tween(
+                            durationMillis = EDITOR_RESIZE_ANIMATION_DURATION_MILLIS,
+                            easing = FastOutSlowInEasing,
+                        ),
+                    label = "editorPaneHeight",
+                )
+
+            SupportingPaneScaffold(
+                modifier = Modifier.fillMaxSize(),
+                directive = navigator.scaffoldDirective,
+                value = navigator.scaffoldValue,
+                mainPane = {
+                    AnimatedPane {
+                        TableMainPane(
+                            isLoading = state.isLoading,
+                            columns = state.config.columns,
+                            cells = cells,
+                            onIntent = onIntent,
+                        )
+                    }
+                },
+                supportingPane = {
+                    AnimatedPane(modifier = Modifier.preferredHeight(editorPaneHeight)) {
+                        val index = state.editingIndex
+                        EditorPane(
+                            index = index,
+                            currentText = index?.let { cells.getOrNull(it)?.text },
+                            onConfirm = { i, text -> onIntent(TableIntent.EditConfirmed(i, text)) },
+                            onDismiss = { onIntent(TableIntent.EditDismissed) },
+                        )
+                    }
+                },
+            )
+        }
     }
 }
 

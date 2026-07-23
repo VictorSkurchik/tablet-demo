@@ -3,12 +3,13 @@ package by.vsdev.tablet.demo.ui.presentation.table.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -24,11 +25,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -42,6 +43,7 @@ import by.vsdev.tablet.demo.ui.theme.AppTheme
 
 internal const val EDITOR_FIELD_TAG = "editorField"
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun EditorPane(
     index: Int?,
@@ -60,18 +62,20 @@ internal fun EditorPane(
             TextFieldState(currentText.take(MAX_CELL_TEXT_LENGTH))
         }
     val focusRequester = remember(index) { FocusRequester() }
-    val editorControlsRequester = remember(index) { BringIntoViewRequester() }
+    val fieldRequester = remember(index) { BringIntoViewRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    val isOnScreenKeyboardVisible = WindowInsets.isImeVisible
 
     LaunchedEffect(index) {
         focusRequester.requestFocus()
+        withFrameNanos { }
         keyboardController?.show()
     }
 
-    LaunchedEffect(index, imeBottom) {
-        if (imeBottom > 0) {
-            editorControlsRequester.bringIntoView()
+    LaunchedEffect(index, isOnScreenKeyboardVisible) {
+        if (isOnScreenKeyboardVisible) {
+            withFrameNanos { }
+            fieldRequester.bringIntoView()
         }
     }
 
@@ -89,7 +93,7 @@ internal fun EditorPane(
             index = index,
             draft = draft,
             focusRequester = focusRequester,
-            bringIntoViewRequester = editorControlsRequester,
+            fieldRequester = fieldRequester,
             onConfirm = onConfirm,
             onDismiss = onDismiss,
         )
@@ -101,15 +105,12 @@ private fun EditorControls(
     index: Int,
     draft: TextFieldState,
     focusRequester: FocusRequester,
-    bringIntoViewRequester: BringIntoViewRequester,
+    fieldRequester: BringIntoViewRequester,
     onConfirm: (Int, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .bringIntoViewRequester(bringIntoViewRequester),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
     ) {
         AppOutlinedTextField(
@@ -130,6 +131,7 @@ private fun EditorControls(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .bringIntoViewRequester(fieldRequester)
                     .testTag(EDITOR_FIELD_TAG)
                     .focusRequester(focusRequester),
         )

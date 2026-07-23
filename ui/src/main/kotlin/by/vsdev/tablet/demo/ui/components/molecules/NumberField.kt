@@ -23,6 +23,7 @@ internal fun NumberField(
     maxLength: Int,
     modifier: Modifier = Modifier,
     imeAction: ImeAction = ImeAction.Done,
+    showSupportingText: Boolean = true,
     onImeAction: () -> Unit = {},
 ) {
     val digitsOnly =
@@ -35,7 +36,7 @@ internal fun NumberField(
         label = label,
         maxLength = maxLength,
         isError = isError,
-        supportingText = { Text(supportingText) },
+        supportingText = if (showSupportingText) ({ Text(supportingText) }) else null,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = imeAction),
         onKeyboardAction = onImeAction,
         inputTransformation = digitsOnly,
