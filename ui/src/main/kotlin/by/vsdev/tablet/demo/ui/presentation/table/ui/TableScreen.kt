@@ -162,7 +162,7 @@ private fun TablePaneLayout(
                 EditorPane(
                     index = index,
                     currentText = index?.let { state.cells.getOrNull(it)?.text },
-                    onConfirm = { i, text -> onIntent(TableIntent.EditConfirmed(i, text)) },
+                    onConfirm = { text -> onIntent(TableIntent.EditConfirmed(text)) },
                     onDismiss = { onIntent(TableIntent.EditDismissed) },
                 )
             }

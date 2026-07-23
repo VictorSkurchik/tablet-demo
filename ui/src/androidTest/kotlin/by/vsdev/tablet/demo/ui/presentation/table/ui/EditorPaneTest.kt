@@ -33,7 +33,7 @@ class EditorPaneTest {
                 EditorPane(
                     index = 0,
                     currentText = "",
-                    onConfirm = { _, _ -> },
+                    onConfirm = {},
                     onDismiss = {},
                 )
             }
@@ -51,18 +51,14 @@ class EditorPaneTest {
     }
 
     @Test
-    fun saveReturnsEditedTextForTheActiveCell() {
-        var confirmedIndex: Int? = null
+    fun saveReturnsEditedText() {
         var confirmedText: String? = null
         composeRule.setContent {
             AppTheme {
                 EditorPane(
                     index = 3,
                     currentText = "",
-                    onConfirm = { index, text ->
-                        confirmedIndex = index
-                        confirmedText = text
-                    },
+                    onConfirm = { confirmedText = it },
                     onDismiss = {},
                 )
             }
@@ -73,7 +69,6 @@ class EditorPaneTest {
         composeRule.onNodeWithText("Save").performClick()
 
         composeRule.runOnIdle {
-            assertEquals(3, confirmedIndex)
             assertEquals("edited", confirmedText)
         }
     }
@@ -86,7 +81,7 @@ class EditorPaneTest {
                 EditorPane(
                     index = 0,
                     currentText = "value",
-                    onConfirm = { _, _ -> },
+                    onConfirm = {},
                     onDismiss = { dismissed = true },
                 )
             }
@@ -107,7 +102,7 @@ class EditorPaneTest {
                     EditorPane(
                         index = 0,
                         currentText = "value",
-                        onConfirm = { _, _ -> confirmed = true },
+                        onConfirm = { confirmed = true },
                         onDismiss = {},
                     )
                 }
@@ -131,7 +126,7 @@ class EditorPaneTest {
                         EditorPane(
                             index = 0,
                             currentText = "value",
-                            onConfirm = { _, _ -> confirmed = true },
+                            onConfirm = { confirmed = true },
                             onDismiss = {},
                         )
                     }

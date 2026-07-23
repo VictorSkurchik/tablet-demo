@@ -88,7 +88,7 @@ class TableViewModelTest {
             viewModel.onIntent(TableIntent.CellDoubleClicked(2))
             assertEquals(2, viewModel.state.value.editingIndex)
 
-            viewModel.onIntent(TableIntent.EditConfirmed(2, "edited"))
+            viewModel.onIntent(TableIntent.EditConfirmed("edited"))
             assertEquals(
                 "edited",
                 viewModel.state.value.cells[2]
@@ -103,8 +103,9 @@ class TableViewModelTest {
             val viewModel = viewModel()
             advanceUntilIdle()
             val oversizedText = "x".repeat(MAX_CELL_TEXT_LENGTH + 20)
+            viewModel.onIntent(TableIntent.CellDoubleClicked(2))
 
-            viewModel.onIntent(TableIntent.EditConfirmed(2, oversizedText))
+            viewModel.onIntent(TableIntent.EditConfirmed(oversizedText))
 
             assertEquals(
                 MAX_CELL_TEXT_LENGTH,
@@ -147,7 +148,7 @@ class TableViewModelTest {
 
             viewModel.onIntent(TableIntent.CellClicked(-1))
             viewModel.onIntent(TableIntent.CellDoubleClicked(config.cellCount))
-            viewModel.onIntent(TableIntent.EditConfirmed(config.cellCount, "edited"))
+            viewModel.onIntent(TableIntent.EditConfirmed("edited"))
 
             assertEquals(originalCells, viewModel.state.value.cells)
             assertNull(viewModel.state.value.editingIndex)

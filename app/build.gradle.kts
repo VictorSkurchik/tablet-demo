@@ -89,6 +89,9 @@ dependencies {
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
 
+    implementation(platform(libs.kotlinx.coroutines.bom))
+    implementation(libs.kotlinx.coroutines.core)
+
     debugImplementation(libs.leakcanary.android)
 
     androidTestImplementation(libs.androidx.junit)
