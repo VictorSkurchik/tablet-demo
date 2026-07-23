@@ -1,5 +1,6 @@
 package by.vsdev.tablet.demo.ui.components.layout
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,7 +40,8 @@ internal fun ResponsiveFormContainer(
             modifier =
                 Modifier
                     .widthIn(max = maxWidth)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .focusGroup(),
             verticalArrangement = Arrangement.spacedBy(verticalSpacing),
             content = content,
         )

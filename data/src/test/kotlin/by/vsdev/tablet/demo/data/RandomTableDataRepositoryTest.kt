@@ -3,6 +3,7 @@ package by.vsdev.tablet.demo.data
 import by.vsdev.tablet.demo.data.random.RandomStringGenerator
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.domain.model.TableData
+import by.vsdev.tablet.demo.domain.model.TableDataResult
 import by.vsdev.tablet.demo.domain.util.BackgroundDispatcher
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -26,6 +27,6 @@ class RandomTableDataRepositoryTest {
 
             val result = repository(testScheduler).generate(config)
 
-            assertEquals(expected, result)
+            assertEquals(TableDataResult.Success(expected), result)
         }
 }

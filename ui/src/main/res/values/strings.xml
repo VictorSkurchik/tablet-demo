@@ -12,11 +12,13 @@
 
     <string name="table_title">Table · %1$d × %2$d</string>
     <string name="table_loading">Generating data…</string>
+    <string name="table_load_error">Couldn’t generate the table.</string>
+    <string name="table_retry">Try again</string>
     <string name="table_back">Back</string>
     <string name="table_cell_content_description">Row %1$d, column %2$d: %3$s</string>
     <string name="table_cell_selected">Selected</string>
     <string name="table_cell_not_selected">Not selected</string>
-    <string name="table_cell_toggle">Toggle cell color</string>
+    <string name="table_cell_toggle">Toggle selection</string>
     <string name="table_cell_edit">Edit cell</string>
     <string name="table_close_editor">Close editor</string>
 
