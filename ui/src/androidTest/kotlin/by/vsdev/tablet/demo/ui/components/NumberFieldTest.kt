@@ -43,6 +43,7 @@ class NumberFieldTest {
                 )
             }
         }
+        composeRule.waitForIdle()
     }
 
     private companion object {

@@ -1,38 +1,42 @@
 package by.vsdev.tablet.demo.ui.presentation.table
 
-import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Immutable
 import by.vsdev.tablet.demo.domain.model.TableConfig
 
 internal const val MAX_CELL_TEXT_LENGTH = 100
 
-/** Snapshot-backed state that can update without replacing its entry in the cell list. */
-@Stable
-internal class CellState(
-    text: String,
-    isSelected: Boolean = false,
-) {
-    var text: String by mutableStateOf(text)
-        private set
-    var isSelected: Boolean by mutableStateOf(isSelected)
-        private set
+@Immutable
+internal data class CellUiState(
+    val text: String,
+    val isSelected: Boolean = false,
+)
 
-    fun toggleSelection() {
-        isSelected = !isSelected
-    }
+@Immutable
+internal sealed interface TableLoadState {
+    data object Loading : TableLoadState
 
-    fun updateText(value: String) {
-        text = value.take(MAX_CELL_TEXT_LENGTH)
-    }
+    data class Content(
+        val cells: List<CellUiState>,
+    ) : TableLoadState
+
+    data object Error : TableLoadState
 }
 
+@Immutable
 internal data class TableUiState(
     val config: TableConfig,
-    val isLoading: Boolean = true,
+    val loadState: TableLoadState = TableLoadState.Loading,
     val editingIndex: Int? = null,
-)
+) {
+    val cells: List<CellUiState>
+        get() = (loadState as? TableLoadState.Content)?.cells.orEmpty()
+
+    val isLoading: Boolean
+        get() = loadState == TableLoadState.Loading
+
+    val hasLoadError: Boolean
+        get() = loadState == TableLoadState.Error
+}
 
 internal sealed interface TableIntent {
     data class CellClicked(
@@ -49,4 +53,6 @@ internal sealed interface TableIntent {
     ) : TableIntent
 
     data object EditDismissed : TableIntent
+
+    data object RetryLoad : TableIntent
 }

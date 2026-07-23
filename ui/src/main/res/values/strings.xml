@@ -12,6 +12,8 @@
 
     <string name="table_title">Table · %1$d × %2$d</string>
     <string name="table_loading">Generating data…</string>
+    <string name="table_load_error">Couldn’t generate the table.</string>
+    <string name="table_retry">Retry</string>
     <string name="table_back">Back</string>
     <string name="table_cell_content_description">Row %1$d, column %2$d: %3$s</string>
     <string name="table_cell_selected">Selected</string>

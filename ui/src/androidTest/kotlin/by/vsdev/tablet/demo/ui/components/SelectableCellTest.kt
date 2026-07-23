@@ -1,14 +1,19 @@
 package by.vsdev.tablet.demo.ui.components
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import by.vsdev.tablet.demo.ui.components.molecules.SelectableCell
@@ -46,6 +51,7 @@ class SelectableCellTest {
                 }
             }
         }
+        composeRule.waitForIdle()
 
         composeRule
             .onNodeWithContentDescription("Row 1, column 2: Cell value")
@@ -80,6 +86,7 @@ class SelectableCellTest {
                 }
             }
         }
+        composeRule.waitForIdle()
 
         composeRule
             .onNodeWithContentDescription("Row 1, column 2: Cell value")
@@ -114,8 +121,48 @@ class SelectableCellTest {
                 }
             }
         }
+        composeRule.waitForIdle()
 
         composeRule.onNodeWithContentDescription("Large text cell").assertHeightIsAtLeast(76.dp)
+    }
+
+    @Test
+    fun enterTogglesSelectionWhileF2OpensEditor() {
+        var clicks = 0
+        var edits = 0
+        val haptics = RecordingAppHaptics()
+        composeRule.setContent {
+            AppTheme {
+                CompositionLocalProvider(LocalAppHaptics provides haptics) {
+                    SelectableCell(
+                        text = "Cell value",
+                        selected = false,
+                        row = 0,
+                        column = 0,
+                        cellDescription = "Keyboard cell",
+                        selectedDescription = "Selected",
+                        notSelectedDescription = "Not selected",
+                        toggleLabel = "Toggle cell color",
+                        editLabel = "Edit cell",
+                        onClick = { clicks++ },
+                        onDoubleClick = { edits++ },
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        val cell = composeRule.onNodeWithContentDescription("Keyboard cell")
+        cell.performSemanticsAction(SemanticsActions.RequestFocus)
+
+        cell.performKeyInput { pressKey(Key.Enter) }
+        cell.performKeyInput { pressKey(Key.F2) }
+
+        composeRule.runOnIdle {
+            assertEquals(1, clicks)
+            assertEquals(1, edits)
+            assertEquals(listOf(true), haptics.selectionStates)
+            assertEquals(1, haptics.editCount)
+        }
     }
 
     private class RecordingAppHaptics : AppHaptics {

@@ -3,6 +3,7 @@ package by.vsdev.tablet.demo.ui.components.molecules
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,12 +34,38 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import by.vsdev.tablet.demo.ui.haptics.AppHaptics
 import by.vsdev.tablet.demo.ui.haptics.LocalAppHaptics
 import by.vsdev.tablet.demo.ui.theme.AppSpacing
 import by.vsdev.tablet.demo.ui.theme.AppTheme
 import by.vsdev.tablet.demo.ui.theme.LocalCellColors
 
 private val MinimumSelectableCellHeight = 56.dp
+
+private fun Modifier.cellKeyboardShortcuts(
+    selected: Boolean,
+    appHaptics: AppHaptics,
+    onClick: () -> Unit,
+    onDoubleClick: () -> Unit,
+): Modifier =
+    onPreviewKeyEvent { event ->
+        val isCellShortcut = event.key == Key.Enter || event.key == Key.F2
+        when {
+            event.type == KeyEventType.KeyUp -> isCellShortcut
+            event.type != KeyEventType.KeyDown || !isCellShortcut -> false
+            event.key == Key.Enter -> {
+                appHaptics.performCellSelection(isSelected = !selected)
+                onClick()
+                true
+            }
+
+            else -> {
+                appHaptics.performCellEdit()
+                onDoubleClick()
+                true
+            }
+        }
+    }
 
 @Composable
 internal fun selectableCellHeight(): Dp {
@@ -109,15 +136,13 @@ internal fun SelectableCell(
                                 true
                             },
                         )
-                }.onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyUp && (event.key == Key.Enter || event.key == Key.F2)) {
-                        appHaptics.performCellEdit()
-                        onDoubleClick()
-                        true
-                    } else {
-                        false
-                    }
-                }.combinedClickable(
+                }.cellKeyboardShortcuts(
+                    selected = selected,
+                    appHaptics = appHaptics,
+                    onClick = onClick,
+                    onDoubleClick = onDoubleClick,
+                ).focusable()
+                .combinedClickable(
                     onClickLabel = toggleLabel,
                     onClick = {
                         appHaptics.performCellSelection(isSelected = !selected)

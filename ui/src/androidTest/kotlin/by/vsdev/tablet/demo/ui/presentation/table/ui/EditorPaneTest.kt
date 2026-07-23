@@ -35,6 +35,7 @@ class EditorPaneTest {
                 )
             }
         }
+        composeRule.waitForIdle()
         val field = composeRule.onNodeWithTag(EDITOR_FIELD_TAG)
         val maximumText = "x".repeat(MAX_CELL_TEXT_LENGTH)
 
@@ -63,6 +64,7 @@ class EditorPaneTest {
                 )
             }
         }
+        composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(EDITOR_FIELD_TAG).performTextInput("edited")
         composeRule.onNodeWithText("Save").performClick()
@@ -86,6 +88,7 @@ class EditorPaneTest {
                 )
             }
         }
+        composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Cancel").performClick()
 
@@ -107,6 +110,7 @@ class EditorPaneTest {
                 }
             }
         }
+        composeRule.waitForIdle()
 
         closeSoftKeyboard()
         composeRule.onNodeWithText("Save").performScrollTo().performClick()

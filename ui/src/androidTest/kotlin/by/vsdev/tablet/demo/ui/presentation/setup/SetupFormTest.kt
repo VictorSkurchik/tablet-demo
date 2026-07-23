@@ -64,5 +64,6 @@ class SetupFormTest {
                 )
             }
         }
+        composeRule.waitForIdle()
     }
 }
