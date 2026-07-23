@@ -36,6 +36,7 @@ internal fun NumberField(
         label = label,
         maxLength = maxLength,
         isError = isError,
+        errorMessage = supportingText.takeIf { isError },
         supportingText = if (showSupportingText) ({ Text(supportingText) }) else null,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = imeAction),
         onKeyboardAction = onImeAction,

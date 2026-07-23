@@ -30,9 +30,17 @@ internal class CellState(
 
 internal data class TableUiState(
     val config: TableConfig,
-    val isLoading: Boolean = true,
+    val loadState: TableLoadState = TableLoadState.Loading,
     val editingIndex: Int? = null,
 )
+
+internal sealed interface TableLoadState {
+    data object Loading : TableLoadState
+
+    data object Content : TableLoadState
+
+    data object Error : TableLoadState
+}
 
 internal sealed interface TableIntent {
     data class CellClicked(
@@ -49,4 +57,6 @@ internal sealed interface TableIntent {
     ) : TableIntent
 
     data object EditDismissed : TableIntent
+
+    data object RetryLoad : TableIntent
 }

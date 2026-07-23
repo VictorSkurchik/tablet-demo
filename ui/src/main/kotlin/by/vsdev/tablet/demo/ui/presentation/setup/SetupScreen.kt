@@ -28,6 +28,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -96,7 +100,14 @@ internal fun SetupScreen(
         }
     }
 
-    Scaffold(modifier = modifier) { innerPadding ->
+    val screenTitle = stringResource(R.string.setup_title)
+    Scaffold(
+        modifier =
+            modifier.semantics {
+                paneTitle = screenTitle
+                isTraversalGroup = true
+            },
+    ) { innerPadding ->
         BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             val imeHeight = with(density) { imeBottom.toDp() }
             val useCompactImeLayout =
@@ -113,29 +124,27 @@ internal fun SetupScreen(
                 rowsModifier =
                     Modifier
                         .bringIntoViewRequester(rowsRequester)
-                        .onFocusChanged {
-                            focusedField =
-                                when {
-                                    it.isFocused -> SetupField.Rows
-                                    focusedField == SetupField.Rows -> null
-                                    else -> focusedField
-                                }
-                        },
+                        .trackSetupFieldFocus(SetupField.Rows, focusedField) { focusedField = it },
                 columnsModifier =
                     Modifier
                         .bringIntoViewRequester(columnsRequester)
-                        .onFocusChanged {
-                            focusedField =
-                                when {
-                                    it.isFocused -> SetupField.Columns
-                                    focusedField == SetupField.Columns -> null
-                                    else -> focusedField
-                                }
-                        },
+                        .trackSetupFieldFocus(SetupField.Columns, focusedField) { focusedField = it },
             )
         }
     }
 }
+
+private fun Modifier.trackSetupFieldFocus(
+    field: SetupField,
+    focusedField: SetupField?,
+    onFocusedFieldChanged: (SetupField?) -> Unit,
+): Modifier =
+    onFocusChanged {
+        when {
+            it.isFocused -> onFocusedFieldChanged(field)
+            focusedField == field -> onFocusedFieldChanged(null)
+        }
+    }
 
 @Composable
 internal fun SetupForm(
@@ -157,6 +166,7 @@ internal fun SetupForm(
             Text(
                 text = stringResource(R.string.setup_title),
                 style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.semantics { heading() },
             )
             Text(
                 text = stringResource(R.string.setup_subtitle),
