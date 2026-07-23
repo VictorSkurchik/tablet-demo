@@ -14,6 +14,7 @@ private const val FLING_COUNT = 5
 private const val SWIPE_STEPS = 8
 private const val SWIPE_START_HEIGHT_NUMERATOR = 3
 private const val SWIPE_HEIGHT_DENOMINATOR = 4
+private const val FIRST_CELL_DESCRIPTION = "Row 1, column 1:"
 
 internal fun MacrobenchmarkScope.buildMaximumTable() {
     val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
@@ -46,20 +47,29 @@ internal fun MacrobenchmarkScope.buildMaximumTable() {
     check(device.wait(Until.hasObject(By.text("Table · 1000 × 6")), TABLE_TIMEOUT_MILLIS)) {
         "Maximum table did not appear"
     }
-    check(device.wait(Until.hasObject(By.descContains("Row 1, column 1:")), TABLE_TIMEOUT_MILLIS)) {
+    check(device.wait(Until.hasObject(By.descContains(FIRST_CELL_DESCRIPTION)), TABLE_TIMEOUT_MILLIS)) {
         "Maximum table cells did not finish loading"
     }
 }
 
 internal fun flingTable() {
     val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    val firstCellSelector = By.descContains(FIRST_CELL_DESCRIPTION)
+    val firstCell =
+        checkNotNull(device.findObject(firstCellSelector)) {
+            "The first table cell is not visible before scrolling"
+        }
+    val swipeX = firstCell.visibleBounds.centerX()
     repeat(FLING_COUNT) {
         device.swipe(
-            device.displayWidth / 2,
+            swipeX,
             device.displayHeight * SWIPE_START_HEIGHT_NUMERATOR / SWIPE_HEIGHT_DENOMINATOR,
-            device.displayWidth / 2,
+            swipeX,
             device.displayHeight / SWIPE_HEIGHT_DENOMINATOR,
             SWIPE_STEPS,
         )
+    }
+    check(device.wait(Until.gone(firstCellSelector), TABLE_TIMEOUT_MILLIS)) {
+        "Table did not scroll: the first cell is still visible"
     }
 }

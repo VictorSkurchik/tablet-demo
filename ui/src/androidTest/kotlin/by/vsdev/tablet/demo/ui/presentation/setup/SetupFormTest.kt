@@ -28,7 +28,7 @@ class SetupFormTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun compactLayoutKeepsValidationErrorsAndBuildAction() {
+    fun compactImeLayoutKeepsValidationErrorsAndBuildAction() {
         setCompactForm(
             state =
                 SetupUiState(
@@ -45,7 +45,7 @@ class SetupFormTest {
     }
 
     @Test
-    fun compactLayoutHidesOnlyHelperTextAndKeepsBuildClickable() {
+    fun compactImeLayoutHidesOnlyHelperTextAndKeepsBuildClickable() {
         var buildClicked = false
         setCompactForm(
             state = SetupUiState(canBuild = true),

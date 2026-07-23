@@ -42,6 +42,12 @@ android {
         compose = true
     }
 
+    testOptions {
+        emulatorControl {
+            enable = true
+        }
+    }
+
     buildTypes {
         debug {
             enableUnitTestCoverage = true
@@ -81,6 +87,8 @@ dependencies {
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.material3.adaptive)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
@@ -95,7 +103,9 @@ dependencies {
     debugImplementation(libs.leakcanary.android)
 
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.device)
     androidTestImplementation(libs.androidx.ui.test.junit4)
+    androidTestImplementation(libs.androidx.window.testing)
 
     testImplementation(libs.androidx.lifecycle.viewmodel.savedstate)
     testImplementation(libs.junit)
@@ -104,13 +114,17 @@ dependencies {
 
 tasks.register("verifyReleaseArtifacts") {
     group = "verification"
-    description = "Builds release artifacts and verifies R8 mapping and packaged Baseline Profiles."
+    description =
+        "Builds release artifacts and verifies R8 mapping, startup optimization, and profiles."
     dependsOn("assembleRelease", "bundleRelease")
     inputs
         .files(
             layout.buildDirectory.file("outputs/apk/release/app-release-unsigned.apk"),
             layout.buildDirectory.file("outputs/bundle/release/app-release.aab"),
             layout.buildDirectory.file("outputs/mapping/release/mapping.txt"),
+            layout.buildDirectory.file(
+                "intermediates/r8_metadata/release/minifyReleaseWithR8/r8-metadata.dat",
+            ),
         ).withPropertyName("releaseArtifacts")
 
     doLast {
@@ -118,6 +132,7 @@ tasks.register("verifyReleaseArtifacts") {
         val releaseApk = checkNotNull(artifacts.singleOrNull { it.extension == "apk" })
         val releaseBundle = checkNotNull(artifacts.singleOrNull { it.extension == "aab" })
         val mapping = checkNotNull(artifacts.singleOrNull { it.name == "mapping.txt" })
+        val r8Metadata = checkNotNull(artifacts.singleOrNull { it.name == "r8-metadata.dat" })
 
         check(releaseApk.isFile && releaseApk.length() > 0L) {
             "Release APK was not produced: $releaseApk"
@@ -127,6 +142,30 @@ tasks.register("verifyReleaseArtifacts") {
         }
         check(mapping.isFile && mapping.length() > 0L) {
             "R8 mapping was not produced: $mapping"
+        }
+        check(r8Metadata.isFile && r8Metadata.length() > 0L) {
+            "R8 metadata was not produced: $r8Metadata"
+        }
+        val r8MetadataContent = r8Metadata.readText()
+        val firstDexStart = r8MetadataContent.indexOf("\"dexFiles\":[")
+        val firstDexMetadata =
+            if (firstDexStart >= 0) {
+                val firstDexEnd = r8MetadataContent.indexOf('}', startIndex = firstDexStart)
+                r8MetadataContent.substring(
+                    startIndex = firstDexStart,
+                    endIndex = firstDexEnd.coerceAtLeast(firstDexStart),
+                )
+            } else {
+                ""
+            }
+        check("\"startup\":true" in firstDexMetadata) {
+            "R8 did not mark the primary classes.dex as startup-optimized"
+        }
+        check(
+            "\"isDexLayoutOptimizationEnabled\":true" in r8MetadataContent &&
+                "\"isProfileGuidedOptimizationEnabled\":true" in r8MetadataContent,
+        ) {
+            "R8 startup profile optimizations are not enabled"
         }
         check(
             ZipFile(releaseApk).use {
