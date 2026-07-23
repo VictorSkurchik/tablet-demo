@@ -25,13 +25,14 @@ internal fun ResponsiveFormContainer(
     maxWidth: Dp = 480.dp,
     contentPadding: Dp = AppSpacing.large,
     verticalSpacing: Dp = AppSpacing.medium,
+    applyImePadding: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Box(
         modifier =
             modifier
                 .fillMaxSize()
-                .imePadding()
+                .then(if (applyImePadding) Modifier.imePadding() else Modifier)
                 .verticalScroll(rememberScrollState())
                 .padding(contentPadding),
         contentAlignment = Alignment.Center,
