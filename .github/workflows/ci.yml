@@ -22,7 +22,7 @@ jobs:
   quality:
     name: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -37,8 +37,15 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Run static analysis and JVM tests
-        run: ./gradlew ktlintCheck detekt test --stacktrace
+      - name: Run static analysis, JVM tests, and release verification
+        run: >-
+          ./gradlew
+          ktlintCheck
+          detekt
+          test
+          lint
+          :app:verifyReleaseArtifacts
+          --stacktrace
 
       - name: Upload quality reports
         if: always()
@@ -48,7 +55,11 @@ jobs:
           path: |
             **/build/reports/detekt/
             **/build/reports/ktlint/
+            **/build/reports/lint-results-*
             **/build/reports/tests/
+            app/build/outputs/apk/release/
+            app/build/outputs/bundle/release/
+            app/build/outputs/mapping/release/
           if-no-files-found: ignore
 
   android-ui-tests:
@@ -82,7 +93,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Run Android UI tests
+      - name: Run Android UI tests and enforce coverage floors
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -91,7 +102,7 @@ jobs:
           profile: pixel_tablet
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: ./gradlew :app:connectedDebugAndroidTest :ui:connectedDebugAndroidTest --stacktrace
+          script: ./gradlew coverageVerification --stacktrace
 
       - name: Upload Android test reports
         if: always()
@@ -101,4 +112,5 @@ jobs:
           path: |
             app/build/reports/androidTests/
             ui/build/reports/androidTests/
+            build/reports/jacoco/coverageReport/
           if-no-files-found: ignore

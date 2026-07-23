@@ -2,6 +2,7 @@ package by.vsdev.tablet.demo.ui.presentation.table.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -45,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import by.vsdev.tablet.demo.ui.R
 import by.vsdev.tablet.demo.ui.components.molecules.SelectableCell
 import by.vsdev.tablet.demo.ui.components.molecules.selectableCellHeight
-import by.vsdev.tablet.demo.ui.presentation.table.CellState
+import by.vsdev.tablet.demo.ui.presentation.table.CellUiState
 import by.vsdev.tablet.demo.ui.presentation.table.TableIntent
 import by.vsdev.tablet.demo.ui.theme.AppSpacing
 import by.vsdev.tablet.demo.ui.theme.AppTheme
@@ -159,7 +160,7 @@ private fun calculateTableGridLayout(
 @Composable
 internal fun TableGrid(
     columns: Int,
-    cells: List<CellState>,
+    cells: List<CellUiState>,
     onIntent: (TableIntent) -> Unit,
     modifier: Modifier = Modifier,
     restoreFocusIndex: Int? = null,
@@ -203,10 +204,10 @@ internal fun TableGrid(
 @Composable
 private fun TableGridViewport(
     columns: Int,
-    cells: List<CellState>,
+    cells: List<CellUiState>,
     cellHeight: Dp,
     verticalGridState: LazyGridState,
-    horizontalScrollState: androidx.compose.foundation.ScrollState,
+    horizontalScrollState: ScrollState,
     restoreFocusIndex: Int?,
     cellFocusRequester: FocusRequester,
     onRestoreTargetPlaced: (Int) -> Unit,
@@ -256,7 +257,7 @@ private fun BoxWithConstraintsScope.TableScrollIndicators(
     cellCount: Int,
     cellHeight: Dp,
     verticalGridState: LazyGridState,
-    horizontalScrollState: androidx.compose.foundation.ScrollState,
+    horizontalScrollState: ScrollState,
 ) {
     if (layout.indicatorVisibility.vertical) {
         VerticalGridScrollIndicator(
@@ -272,9 +273,7 @@ private fun BoxWithConstraintsScope.TableScrollIndicators(
     }
     if (layout.indicatorVisibility.horizontal) {
         HorizontalScrollIndicator(
-            scrollOffset = horizontalScrollState.value,
-            maximumScrollOffset = horizontalScrollState.maxValue,
-            viewportWidth = horizontalScrollState.viewportSize,
+            state = horizontalScrollState,
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
@@ -307,7 +306,7 @@ private fun RestoreCellFocus(
 @Composable
 private fun TableCells(
     columns: Int,
-    cells: List<CellState>,
+    cells: List<CellUiState>,
     cellHeight: Dp,
     state: LazyGridState,
     startPadding: Dp,
@@ -445,9 +444,7 @@ private fun VerticalGridScrollIndicator(
 
 @Composable
 private fun HorizontalScrollIndicator(
-    scrollOffset: Int,
-    maximumScrollOffset: Int,
-    viewportWidth: Int,
+    state: ScrollState,
     modifier: Modifier = Modifier,
 ) {
     val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
@@ -460,13 +457,13 @@ private fun HorizontalScrollIndicator(
                 .height(ScrollIndicatorThickness)
                 .padding(horizontal = AppSpacing.medium, vertical = 5.dp),
     ) {
-        val viewportSize = viewportWidth.toFloat()
+        val viewportSize = state.viewportSize.toFloat()
         val geometry =
             calculateScrollThumbGeometry(
                 trackLength = size.width,
                 viewportLength = viewportSize,
-                contentLength = viewportSize + maximumScrollOffset,
-                scrollOffset = scrollOffset.toFloat(),
+                contentLength = viewportSize + state.maxValue,
+                scrollOffset = state.value.toFloat(),
                 minimumThumbLength = 32.dp.toPx(),
             ) ?: return@Canvas
 
@@ -484,6 +481,6 @@ private fun HorizontalScrollIndicator(
 @Preview(name = "Table grid", widthDp = 700, heightDp = 420)
 @Composable
 private fun TableGridPreview() {
-    val cells = List(40) { CellState(text = "Cell $it", isSelected = it % 3 == 0) }
+    val cells = List(40) { CellUiState(text = "Cell $it", isSelected = it % 3 == 0) }
     AppTheme { TableGrid(columns = 4, cells = cells, onIntent = {}) }
 }

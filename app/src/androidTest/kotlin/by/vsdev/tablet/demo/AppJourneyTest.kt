@@ -68,6 +68,17 @@ class AppJourneyTest {
         }
     }
 
+    @Test
+    fun maximumDimensionsBuildAndReachLastCell() {
+        buildTable(rows = MAXIMUM_TABLE_ROWS, columns = MAXIMUM_TABLE_COLUMNS)
+
+        scrollToCell(
+            index = MAXIMUM_TABLE_ROWS * MAXIMUM_TABLE_COLUMNS - 1,
+            row = MAXIMUM_TABLE_ROWS,
+            column = MAXIMUM_TABLE_COLUMNS,
+        )
+    }
+
     private fun selectCell(
         row: Int,
         column: Int,
@@ -147,6 +158,8 @@ class AppJourneyTest {
         const val TIMEOUT_MILLIS = 5_000L
         const val LARGE_TABLE_ROWS = 50
         const val LARGE_TABLE_COLUMNS = 4
+        const val MAXIMUM_TABLE_ROWS = 1_000
+        const val MAXIMUM_TABLE_COLUMNS = 6
         const val LAST_CELL_INDEX = LARGE_TABLE_ROWS * LARGE_TABLE_COLUMNS - 1
         const val EDITED_VALUE = "Edited value"
     }

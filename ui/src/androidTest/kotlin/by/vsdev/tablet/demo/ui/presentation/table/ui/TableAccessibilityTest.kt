@@ -17,7 +17,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import by.vsdev.tablet.demo.domain.model.TableConfig
-import by.vsdev.tablet.demo.ui.presentation.table.CellState
+import by.vsdev.tablet.demo.ui.presentation.table.CellUiState
 import by.vsdev.tablet.demo.ui.presentation.table.TableIntent
 import by.vsdev.tablet.demo.ui.presentation.table.TableLoadState
 import by.vsdev.tablet.demo.ui.presentation.table.TableUiState
@@ -36,7 +36,7 @@ class TableAccessibilityTest {
             AppTheme {
                 TableGrid(
                     columns = 2,
-                    cells = List(4) { CellState("Cell $it") },
+                    cells = List(4) { CellUiState("Cell $it") },
                     onIntent = {},
                 )
             }
@@ -70,7 +70,7 @@ class TableAccessibilityTest {
             AppTheme {
                 TableGrid(
                     columns = 2,
-                    cells = List(100) { CellState("Cell $it") },
+                    cells = List(100) { CellUiState("Cell $it") },
                     restoreFocusIndex = restoreFocusIndex,
                     onIntent = {},
                 )
@@ -131,7 +131,6 @@ class TableAccessibilityTest {
             AppTheme {
                 TableScreen(
                     state = state,
-                    cells = emptyList(),
                     onIntent = onIntent,
                     onNavigateUp = {},
                 )

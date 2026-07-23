@@ -4,6 +4,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -161,6 +162,7 @@ internal fun SelectableCell(
                             },
                         )
                 }.cellKeyboardActions(selectCell, editCell)
+                .focusable()
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = LocalIndication.current,
