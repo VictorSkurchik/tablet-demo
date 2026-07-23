@@ -74,12 +74,15 @@ dependencies {
     implementation(project(":ui"))
     implementation(project(":domain"))
     implementation(project(":data"))
+    implementation(project(":recovery"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
+    implementation(platform(libs.kotlinx.coroutines.bom))
+    implementation(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.profileinstaller)
 
     implementation(platform(libs.koin.bom))
@@ -88,6 +91,7 @@ dependencies {
     debugImplementation(libs.leakcanary.android)
 
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.ui.test.junit4)
 
     testImplementation(libs.androidx.lifecycle.viewmodel.savedstate)

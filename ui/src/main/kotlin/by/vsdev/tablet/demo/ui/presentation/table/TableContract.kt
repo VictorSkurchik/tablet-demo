@@ -5,8 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import by.vsdev.tablet.demo.domain.model.TableConfig
+import by.vsdev.tablet.demo.recovery.model.MAX_RECOVERED_CELL_VALUE_LENGTH
 
-internal const val MAX_CELL_TEXT_LENGTH = 100
+internal const val MAX_CELL_TEXT_LENGTH = MAX_RECOVERED_CELL_VALUE_LENGTH
 
 /** Snapshot-backed state that can update without replacing its entry in the cell list. */
 @Stable
@@ -32,6 +33,7 @@ internal data class TableUiState(
     val config: TableConfig,
     val isLoading: Boolean = true,
     val editingIndex: Int? = null,
+    val editorDraft: String? = null,
 )
 
 internal sealed interface TableIntent {
@@ -47,6 +49,12 @@ internal sealed interface TableIntent {
         val index: Int,
         val text: String,
     ) : TableIntent
+
+    data class EditorDraftChanged(
+        val text: String,
+    ) : TableIntent
+
+    data object AppBackgrounded : TableIntent
 
     data object EditDismissed : TableIntent
 }

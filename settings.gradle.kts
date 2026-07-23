@@ -26,6 +26,6 @@ rootProject.name = "tablet-demo"
 include(":app")
 include(":ui")
 include(":domain")
+include(":recovery")
 include(":data")
 include(":benchmark")
-

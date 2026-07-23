@@ -47,6 +47,7 @@ tasks.register<JacocoReport>("coverageReport") {
         ":app:connectedDebugAndroidTest",
         ":data:test",
         ":domain:test",
+        ":recovery:test",
         ":ui:testDebugUnitTest",
         ":ui:connectedDebugAndroidTest",
     )
@@ -73,6 +74,7 @@ tasks.register<JacocoReport>("coverageReport") {
             ),
             project(":data").layout.buildDirectory.dir("classes/kotlin/main"),
             project(":domain").layout.buildDirectory.dir("classes/kotlin/main"),
+            project(":recovery").layout.buildDirectory.dir("classes/kotlin/main"),
         ).asFileTree.matching {
             exclude(
                 "**/R.class",

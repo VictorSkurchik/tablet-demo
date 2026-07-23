@@ -10,10 +10,15 @@ internal data object SetupDestination
 internal data class TableDestination(
     val rows: Int,
     val columns: Int,
+    val recoverySessionId: String? = null,
 ) {
-    constructor(config: TableConfig) : this(
+    constructor(
+        config: TableConfig,
+        recoverySessionId: String,
+    ) : this(
         rows = config.rows,
         columns = config.columns,
+        recoverySessionId = recoverySessionId,
     )
 
     fun toConfig(): TableConfig =

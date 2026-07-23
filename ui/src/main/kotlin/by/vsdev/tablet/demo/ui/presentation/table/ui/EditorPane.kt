@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +49,8 @@ internal const val EDITOR_FIELD_TAG = "editorField"
 internal fun EditorPane(
     index: Int?,
     currentText: String?,
+    restoredDraft: String? = null,
+    onDraftChanged: (String) -> Unit = {},
     onConfirm: (Int, String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -59,7 +62,7 @@ internal fun EditorPane(
 
     val draft =
         rememberSaveable(index, saver = TextFieldState.Saver) {
-            TextFieldState(currentText.take(MAX_CELL_TEXT_LENGTH))
+            TextFieldState((restoredDraft ?: currentText).take(MAX_CELL_TEXT_LENGTH))
         }
     val focusRequester = remember(index) { FocusRequester() }
     val fieldRequester = remember(index) { BringIntoViewRequester() }
@@ -70,6 +73,10 @@ internal fun EditorPane(
         focusRequester.requestFocus()
         withFrameNanos { }
         keyboardController?.show()
+    }
+
+    LaunchedEffect(index, draft) {
+        snapshotFlow { draft.text.toString() }.collect(onDraftChanged)
     }
 
     LaunchedEffect(index, isOnScreenKeyboardVisible) {

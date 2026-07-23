@@ -1,6 +1,7 @@
 package by.vsdev.tablet.demo.di
 
 import androidx.lifecycle.SavedStateHandle
+import by.vsdev.tablet.demo.data.recovery.RecoveryIoDispatcher
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.domain.util.BackgroundDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
@@ -25,6 +26,7 @@ class KoinModulesTest {
                 injections =
                     injectedParameters(
                         definition<BackgroundDispatcher>(CoroutineDispatcher::class),
+                        definition<RecoveryIoDispatcher>(CoroutineDispatcher::class),
                     ),
             )
     }
