@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -112,7 +113,6 @@ private data class TableGridLayout(
     val endInset: Dp,
     val bottomInset: Dp,
     val tableWidth: Dp,
-    val centeredStartPadding: Dp,
 )
 
 private fun calculateTableGridLayout(
@@ -153,7 +153,6 @@ private fun calculateTableGridLayout(
         endInset = endInset,
         bottomInset = bottomInset,
         tableWidth = tableWidth,
-        centeredStartPadding = ((availableWidth - tableWidth) / 2).coerceAtLeast(0.dp),
     )
 }
 
@@ -222,23 +221,29 @@ private fun TableGridViewport(
                 itemCount = cells.size,
                 cellHeight = cellHeight,
             )
-        TableCells(
-            columns = columns,
-            cells = cells,
-            cellHeight = cellHeight,
-            state = verticalGridState,
-            startPadding = layout.centeredStartPadding,
-            tableWidth = layout.tableWidth,
-            restoreFocusIndex = restoreFocusIndex,
-            cellFocusRequester = cellFocusRequester,
-            onRestoreTargetPlaced = onRestoreTargetPlaced,
-            onIntent = onIntent,
+        Box(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .padding(end = layout.endInset, bottom = layout.bottomInset)
                     .horizontalScroll(horizontalScrollState),
-        )
+        ) {
+            TableCells(
+                columns = columns,
+                cells = cells,
+                cellHeight = cellHeight,
+                state = verticalGridState,
+                restoreFocusIndex = restoreFocusIndex,
+                cellFocusRequester = cellFocusRequester,
+                onRestoreTargetPlaced = onRestoreTargetPlaced,
+                onIntent = onIntent,
+                modifier =
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .width(layout.tableWidth)
+                        .fillMaxHeight(),
+            )
+        }
         TableScrollIndicators(
             layout = layout,
             columns = columns,
@@ -309,8 +314,6 @@ private fun TableCells(
     cells: List<CellUiState>,
     cellHeight: Dp,
     state: LazyGridState,
-    startPadding: Dp,
-    tableWidth: Dp,
     restoreFocusIndex: Int?,
     cellFocusRequester: FocusRequester,
     onRestoreTargetPlaced: (Int) -> Unit,
@@ -327,9 +330,6 @@ private fun TableCells(
         state = state,
         modifier =
             modifier
-                .padding(start = startPadding)
-                .width(tableWidth)
-                .fillMaxHeight()
                 .semantics {
                     collectionInfo =
                         CollectionInfo(

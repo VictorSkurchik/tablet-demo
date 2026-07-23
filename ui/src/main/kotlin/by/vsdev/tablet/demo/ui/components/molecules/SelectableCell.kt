@@ -7,14 +7,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,7 +49,6 @@ import by.vsdev.tablet.demo.ui.theme.AppTheme
 import by.vsdev.tablet.demo.ui.theme.LocalCellColors
 
 private val MinimumSelectableCellHeight = 56.dp
-private val SelectedIndicatorSpace = 26.dp
 
 private data class SelectableCellStyle(
     val background: Color,
@@ -187,9 +181,7 @@ internal fun SelectableCell(
         CellText(
             text = text,
             color = style.content,
-            modifier = Modifier.padding(horizontal = SelectedIndicatorSpace),
         )
-        if (selected) SelectedIndicator(style.content)
     }
 }
 
@@ -216,20 +208,6 @@ private fun Modifier.cellKeyboardActions(
             else -> false
         }
     }
-
-@Composable
-private fun BoxScope.SelectedIndicator(color: Color) {
-    Icon(
-        imageVector = Icons.Default.Check,
-        contentDescription = null,
-        tint = color,
-        modifier =
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(4.dp)
-                .size(18.dp),
-    )
-}
 
 @Preview
 @Composable
