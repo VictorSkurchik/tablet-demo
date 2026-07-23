@@ -9,11 +9,11 @@ class ScrollThumbGeometryTest {
     fun `returns no thumb when content fits in viewport`() {
         assertNull(
             calculateScrollThumbGeometry(
-                trackHeight = 500f,
-                viewportHeight = 600f,
-                contentHeight = 600f,
+                trackLength = 500f,
+                viewportLength = 600f,
+                contentLength = 600f,
                 scrollOffset = 0f,
-                minimumThumbHeight = 32f,
+                minimumThumbLength = 32f,
             ),
         )
     }
@@ -21,28 +21,28 @@ class ScrollThumbGeometryTest {
     @Test
     fun `thumb starts at top and reaches bottom`() {
         val start = geometry(scrollOffset = 0f)
-        val end = geometry(scrollOffset = CONTENT_HEIGHT - VIEWPORT_HEIGHT)
+        val end = geometry(scrollOffset = CONTENT_HEIGHT - VIEWPORT_LENGTH)
 
-        assertEquals(0f, start.top)
-        assertEquals(TRACK_HEIGHT - end.height, end.top)
+        assertEquals(0f, start.offset)
+        assertEquals(TRACK_LENGTH - end.length, end.offset)
     }
 
     @Test
     fun `thumb height remains constant while scrolling`() {
         val start = geometry(scrollOffset = 0f)
         val middle = geometry(scrollOffset = 1_500f)
-        val end = geometry(scrollOffset = CONTENT_HEIGHT - VIEWPORT_HEIGHT)
+        val end = geometry(scrollOffset = CONTENT_HEIGHT - VIEWPORT_LENGTH)
 
-        assertEquals(start.height, middle.height)
-        assertEquals(start.height, end.height)
+        assertEquals(start.length, middle.length)
+        assertEquals(start.length, end.length)
     }
 
     @Test
     fun `thumb position represents the scroll fraction`() {
-        val middle = geometry(scrollOffset = (CONTENT_HEIGHT - VIEWPORT_HEIGHT) / 2f)
-        val expectedTop = (TRACK_HEIGHT - middle.height) / 2f
+        val middle = geometry(scrollOffset = (CONTENT_HEIGHT - VIEWPORT_LENGTH) / 2f)
+        val expectedTop = (TRACK_LENGTH - middle.length) / 2f
 
-        assertEquals(expectedTop, middle.top, 0.001f)
+        assertEquals(expectedTop, middle.offset, 0.001f)
     }
 
     @Test
@@ -50,9 +50,9 @@ class ScrollThumbGeometryTest {
         val beforeStart = geometry(scrollOffset = -100f, contentHeight = 100_000f)
         val afterEnd = geometry(scrollOffset = 200_000f, contentHeight = 100_000f)
 
-        assertEquals(MINIMUM_THUMB_HEIGHT, beforeStart.height)
-        assertEquals(0f, beforeStart.top)
-        assertEquals(TRACK_HEIGHT - afterEnd.height, afterEnd.top)
+        assertEquals(MINIMUM_THUMB_LENGTH, beforeStart.length)
+        assertEquals(0f, beforeStart.offset)
+        assertEquals(TRACK_LENGTH - afterEnd.length, afterEnd.offset)
     }
 
     private fun geometry(
@@ -61,18 +61,18 @@ class ScrollThumbGeometryTest {
     ): ScrollThumbGeometry =
         checkNotNull(
             calculateScrollThumbGeometry(
-                trackHeight = TRACK_HEIGHT,
-                viewportHeight = VIEWPORT_HEIGHT,
-                contentHeight = contentHeight,
+                trackLength = TRACK_LENGTH,
+                viewportLength = VIEWPORT_LENGTH,
+                contentLength = contentHeight,
                 scrollOffset = scrollOffset,
-                minimumThumbHeight = MINIMUM_THUMB_HEIGHT,
+                minimumThumbLength = MINIMUM_THUMB_LENGTH,
             ),
         )
 
     private companion object {
-        const val TRACK_HEIGHT = 500f
-        const val VIEWPORT_HEIGHT = 1_000f
+        const val TRACK_LENGTH = 500f
+        const val VIEWPORT_LENGTH = 1_000f
         const val CONTENT_HEIGHT = 5_000f
-        const val MINIMUM_THUMB_HEIGHT = 32f
+        const val MINIMUM_THUMB_LENGTH = 32f
     }
 }
