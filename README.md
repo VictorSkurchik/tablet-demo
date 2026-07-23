@@ -81,7 +81,7 @@ The application follows a layered modular structure with dependencies pointing t
 
 ## Testing
 
-The test suite currently contains 52 tests: 44 JVM unit tests and 8 device tests. The combined test run completed successfully on the Pixel Tablet emulator.
+The test suite currently contains 52 scenarios: 38 JVM unit tests, 10 device UI tests, and 4 macrobenchmark or baseline-profile scenarios. The JVM and UI suites completed successfully on an Android 15 tablet emulator.
 
 Implemented test types:
 
