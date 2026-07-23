@@ -2,6 +2,7 @@ package by.vsdev.tablet.demo.ui.presentation.table
 
 import androidx.lifecycle.viewModelScope
 import by.vsdev.tablet.demo.domain.model.TableConfig
+import by.vsdev.tablet.demo.domain.model.TableDataResult
 import by.vsdev.tablet.demo.domain.usecase.GenerateTableDataUseCase
 import by.vsdev.tablet.demo.domain.util.BackgroundDispatcher
 import by.vsdev.tablet.demo.ui.mvi.MviViewModel
@@ -27,18 +28,32 @@ internal class TableViewModel(
         loadJob =
             viewModelScope.launch {
                 try {
-                    val data = generateTableData(config)
-                    val cells =
-                        withContext(backgroundDispatcher.value) {
-                            data.cells.map { CellUiState(text = it) }
+                    when (val result = generateTableData(config)) {
+                        is TableDataResult.Success -> {
+                            val cells =
+                                withContext(backgroundDispatcher.value) {
+                                    result.data.cells.map { CellUiState(text = it) }
+                                }
+                            setState { copy(loadState = TableLoadState.Content(cells)) }
                         }
-                    setState { copy(loadState = TableLoadState.Content(cells)) }
+
+                        TableDataResult.GenerationUnavailable -> showLoadError()
+                    }
                 } catch (error: CancellationException) {
                     throw error
                 } catch (_: Exception) {
-                    setState { copy(loadState = TableLoadState.Error) }
+                    showLoadError()
                 }
             }
+    }
+
+    private fun showLoadError() {
+        setState {
+            copy(
+                loadState = TableLoadState.Error,
+                editingIndex = null,
+            )
+        }
     }
 
     override fun onIntent(intent: TableIntent) {

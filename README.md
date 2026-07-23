@@ -4,8 +4,8 @@
 ![Android](https://img.shields.io/badge/Android-API%2028%2B-3DDC84?logo=android&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2026.06.01-4285F4?logo=jetpackcompose&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.1-02303A?logo=gradle&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-66%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/Line%20coverage-88.5%25-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-78%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/Line%20coverage-91.9%25-brightgreen)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 Tablet Demo is a tablet-only Android application for generating, exploring, selecting, and editing a table of random string values. The project is implemented with Jetpack Compose and split into UI, domain, and data layers.
@@ -82,7 +82,7 @@ The application follows a layered modular structure with dependencies pointing t
 
 ## Testing
 
-The project contains 71 automated scenarios: 49 JVM unit tests, 17 device UI tests, and 5 separately executed macrobenchmark or baseline-profile scenarios. All 66 JVM and UI tests completed successfully on the Medium Tablet API 35 emulator running Android 15.
+The project contains 83 automated scenarios: 52 JVM unit tests, 26 device UI tests, and 5 separately executed macrobenchmark or baseline-profile scenarios. All 78 JVM and UI tests are enforced by the build.
 
 Implemented test types:
 
@@ -94,6 +94,7 @@ Implemented test types:
 - Dependency-injection graph verification
 - Compose instrumentation tests for number fields, mouse/touch and Enter/F2 cell
   interaction, compact setup validation, and the editor pane
+- Accessibility contracts for localized errors, loading/error announcements, table collection semantics, selection state, gesture alternatives, keyboard traversal, touch targets, contrast, and large font scale
 - Regression tests for keyboard-aware setup content and editor-pane height
 - End-to-end instrumentation journeys covering setup, table creation, selection,
   editing, localization, and access to the final cell of a 1,000 × 6 table
@@ -126,11 +127,11 @@ The generated report is available at `build/reports/jacoco/coverageReport/html/i
 
 | Coverage metric | Result |
 | --- | ---: |
-| Instructions | 87.50% |
-| Lines | 88.56% |
-| Branches | 75.95% |
-| Methods | 85.11% |
-| Classes | 96.97% |
+| Instructions | 91.31% |
+| Lines | 91.88% |
+| Branches | 79.68% |
+| Methods | 88.54% |
+| Classes | 98.57% |
 
 The build fails below 87% instructions, 73% branches, 88% lines, 84% methods,
 or 96% classes.
@@ -196,7 +197,6 @@ The following improvements are intentionally outside the current requirements:
 - Persistent storage, import/export, and sharing of table data
 - Undo/redo, copy/paste, bulk selection, sorting, filtering, and search
 - Phone, foldable, multi-window, and desktop layouts
-- A full accessibility audit for screen readers and alternative input devices
 - Release signing and store publishing
 
 ## Git workflow

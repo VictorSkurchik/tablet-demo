@@ -11,6 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
 
 @Composable
 internal fun AppOutlinedTextField(
@@ -20,6 +22,7 @@ internal fun AppOutlinedTextField(
     modifier: Modifier = Modifier,
     supportingText: (@Composable () -> Unit)? = null,
     isError: Boolean = false,
+    errorMessage: String? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     onKeyboardAction: () -> Unit = {},
     inputTransformation: InputTransformation? = null,
@@ -39,6 +42,9 @@ internal fun AppOutlinedTextField(
         lineLimits = TextFieldLineLimits.SingleLine,
         keyboardOptions = keyboardOptions,
         onKeyboardAction = { onKeyboardAction() },
-        modifier = modifier,
+        modifier =
+            modifier.semantics {
+                errorMessage?.let { error(it) }
+            },
     )
 }

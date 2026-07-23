@@ -2,6 +2,7 @@ package by.vsdev.tablet.demo.ui.presentation.table
 
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.domain.model.TableData
+import by.vsdev.tablet.demo.domain.model.TableDataResult
 import by.vsdev.tablet.demo.domain.repository.TableDataRepository
 import by.vsdev.tablet.demo.domain.usecase.GenerateTableDataUseCase
 import by.vsdev.tablet.demo.domain.util.BackgroundDispatcher
@@ -24,14 +25,13 @@ class TableViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val config = TableConfig(rows = 3, columns = 2)
+    private val successfulRepository =
+        object : TableDataRepository {
+            override suspend fun generate(config: TableConfig): TableDataResult =
+                TableDataResult.Success(successfulTableData(config))
+        }
 
-    private fun viewModel(
-        repository: TableDataRepository =
-            object : TableDataRepository {
-                override suspend fun generate(config: TableConfig): TableData =
-                    TableData(config, List(config.cellCount) { "c$it" })
-            },
-    ): TableViewModel =
+    private fun viewModel(repository: TableDataRepository = successfulRepository): TableViewModel =
         TableViewModel(
             config = config,
             generateTableData = GenerateTableDataUseCase(repository),
@@ -154,37 +154,55 @@ class TableViewModelTest {
         }
 
     @Test
-    fun `generation failure exposes an error and retry replaces it with content`() =
+    fun `unavailable generation exposes retryable error and retry recovers`() =
         runTest(mainDispatcherRule.dispatcher) {
             var attempts = 0
             val repository =
                 object : TableDataRepository {
-                    override suspend fun generate(config: TableConfig): TableData {
+                    override suspend fun generate(config: TableConfig): TableDataResult {
                         attempts++
-                        check(attempts > 1) { "synthetic generation failure" }
-                        return TableData(config, List(config.cellCount) { "retry-$it" })
+                        return if (attempts == 1) {
+                            TableDataResult.GenerationUnavailable
+                        } else {
+                            TableDataResult.Success(successfulTableData(config))
+                        }
                     }
                 }
             val viewModel = viewModel(repository)
 
             advanceUntilIdle()
             assertTrue(viewModel.state.value.hasLoadError)
-            assertTrue(
-                viewModel.state.value.cells
-                    .isEmpty(),
-            )
 
             viewModel.onIntent(TableIntent.RetryLoad)
             advanceUntilIdle()
 
             assertEquals(2, attempts)
             assertFalse(viewModel.state.value.hasLoadError)
-            assertEquals(
-                "retry-0",
-                viewModel.state.value.cells
-                    .first()
-                    .text,
-            )
+            assertEquals(config.cellCount, viewModel.state.value.cells.size)
+        }
+
+    @Test
+    fun `unexpected generation failure exposes an error and retry recovers`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            var attempts = 0
+            val repository =
+                object : TableDataRepository {
+                    override suspend fun generate(config: TableConfig): TableDataResult {
+                        attempts++
+                        check(attempts > 1) { "synthetic generation failure" }
+                        return TableDataResult.Success(successfulTableData(config))
+                    }
+                }
+            val viewModel = viewModel(repository)
+
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.hasLoadError)
+
+            viewModel.onIntent(TableIntent.RetryLoad)
+            advanceUntilIdle()
+
+            assertEquals(2, attempts)
+            assertFalse(viewModel.state.value.hasLoadError)
         }
 
     @Test
@@ -194,7 +212,7 @@ class TableViewModelTest {
             var cancellations = 0
             val repository =
                 object : TableDataRepository {
-                    override suspend fun generate(config: TableConfig): TableData {
+                    override suspend fun generate(config: TableConfig): TableDataResult {
                         attempts++
                         if (attempts == 1) {
                             try {
@@ -203,7 +221,7 @@ class TableViewModelTest {
                                 cancellations++
                             }
                         }
-                        return TableData(config, List(config.cellCount) { "replacement-$it" })
+                        return TableDataResult.Success(successfulTableData(config, "replacement-"))
                     }
                 }
             val viewModel = viewModel(repository)
@@ -214,7 +232,6 @@ class TableViewModelTest {
 
             assertEquals(2, attempts)
             assertEquals(1, cancellations)
-            assertFalse(viewModel.state.value.hasLoadError)
             assertEquals(
                 "replacement-0",
                 viewModel.state.value.cells
@@ -222,4 +239,11 @@ class TableViewModelTest {
                     .text,
             )
         }
+
+    private companion object {
+        fun successfulTableData(
+            config: TableConfig,
+            prefix: String = "c",
+        ) = TableData(config, List(config.cellCount) { "$prefix$it" })
+    }
 }
