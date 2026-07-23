@@ -47,6 +47,8 @@ internal fun EditorPane(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    showTitle: Boolean = true,
+    draftState: TextFieldState? = null,
 ) {
     if (index == null || currentText == null) {
         EmptyEditorPane(modifier)
@@ -54,7 +56,7 @@ internal fun EditorPane(
     }
 
     val draft =
-        rememberSaveable(index, saver = TextFieldState.Saver) {
+        draftState ?: rememberSaveable(index, saver = TextFieldState.Saver) {
             TextFieldState(currentText.take(MAX_CELL_TEXT_LENGTH))
         }
     val focusRequester = remember(index) { FocusRequester() }
@@ -74,11 +76,13 @@ internal fun EditorPane(
                 .padding(AppSpacing.large),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
     ) {
-        Text(
-            stringResource(R.string.editor_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.semantics { heading() },
-        )
+        if (showTitle) {
+            Text(
+                stringResource(R.string.editor_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.semantics { heading() },
+            )
+        }
         EditorControls(
             draft = draft,
             focusRequester = focusRequester,

@@ -4,11 +4,15 @@
 ![Android](https://img.shields.io/badge/Android-API%2028%2B-3DDC84?logo=android&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2026.06.01-4285F4?logo=jetpackcompose&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.1-02303A?logo=gradle&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-78%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/Line%20coverage-91.6%25-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-94%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/Line%20coverage-95.3%25-brightgreen)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 Tablet Demo is a tablet-only Android application for generating, exploring, selecting, and editing a table of random string values. The project is implemented with Jetpack Compose and split into UI, domain, and data layers.
+
+The tablet experience adapts at runtime to compact and expanded window sizes,
+split/multi-window resizing, tabletop posture, and separating foldable hinges
+while preserving form, table, and editor state.
 
 ## Original requirements
 
@@ -27,7 +31,7 @@ Technical requirements: **Only for tablets, Jetpack Compose, Modularization (UI,
 
 ## Screenshots
 
-The screenshots below were recaptured on 23 July 2026 from the debug build on a
+The screenshots below were recaptured on 24 July 2026 from the debug build on a
 Medium Tablet API 35 emulator running Android 15 at 2560 × 1600.
 
 ### Setup
@@ -71,10 +75,12 @@ The application follows a layered modular structure with dependencies pointing t
 - Android Gradle Plugin 9.3.1 and Gradle 9.6.1
 - Jetpack Compose with the Compose BOM 2026.06.01
 - Material 3 and Material 3 Adaptive supporting-pane layouts
+- AndroidX WindowManager 1.5.1 for fold posture and separating-hinge information
 - Navigation Compose with type-safe serializable destinations
 - Kotlin coroutines, structured cancellation, and a single immutable `StateFlow` MVI state
 - Koin for dependency injection
-- JUnit 4, Turbine, Compose UI Test, Espresso 3.7.0, and UI Automator
+- JUnit 4, Turbine, Compose UI Test, Espresso 3.7.0, Espresso Device 1.1.0,
+  WindowManager Testing, and UI Automator
 - JaCoCo for combined JVM and device-test coverage
 - AndroidX Macrobenchmark and Baseline Profiles
 - AndroidX Profile Installer 1.4.1
@@ -83,9 +89,9 @@ The application follows a layered modular structure with dependencies pointing t
 
 ## Testing
 
-The project contains 82 automated scenarios: 52 JVM unit tests, 26 device UI
+The project contains 98 automated scenarios: 59 JVM unit tests, 35 device UI
 tests, and 4 separately executed macrobenchmark or baseline-profile scenarios.
-All 78 JVM and UI tests are enforced by the build.
+All 94 JVM and UI tests are enforced by the build.
 
 Implemented test types:
 
@@ -99,6 +105,9 @@ Implemented test types:
   interaction, compact setup validation, and the editor pane
 - Accessibility contracts for localized errors, loading/error announcements, table collection semantics, selection state, gesture alternatives, keyboard traversal, touch targets, contrast, and large font scale
 - Regression tests for keyboard-aware setup content and editor-pane height
+- Adaptive-layout tests for compact/expanded resizing, tabletop posture,
+  multiple and mixed separating hinges, and state preservation across
+  multi-window and split-window transitions
 - End-to-end instrumentation journeys covering setup, table creation, selection,
   editing, localization, and access to the final cell of a 1,000 × 6 table
 - Macrobenchmark and baseline-profile scenarios for a maximum-size 1,000 × 6 table
@@ -130,11 +139,11 @@ The generated report is available at `build/reports/jacoco/coverageReport/html/i
 
 | Coverage metric | Result |
 | --- | ---: |
-| Instructions | 91.01% |
-| Lines | 91.59% |
-| Branches | 79.11% |
-| Methods | 88.10% |
-| Classes | 98.55% |
+| Instructions | 93.46% |
+| Lines | 95.26% |
+| Branches | 78.50% |
+| Methods | 90.40% |
+| Classes | 98.73% |
 
 The build fails below 87% instructions, 73% branches, 88% lines, 84% methods,
 or 96% classes.
@@ -145,7 +154,7 @@ or 96% classes.
 
 ## Benchmarks
 
-Remeasured on 23 July 2026 on a Pixel Tablet emulator running Android 15 at
+Remeasured on 24 July 2026 on a Pixel Tablet emulator running Android 15 at
 2560 × 1600 and 60 Hz, with system animations disabled.
 
 ### Debug build
@@ -154,7 +163,7 @@ The development build includes JaCoCo and LeakCanary and does not use R8 optimiz
 
 | Cold startup | Average | Median |
 | --- | ---: | ---: |
-| Activity Manager, 5 runs | 699 ms | 678 ms |
+| Activity Manager, 5 runs | 715 ms | 718 ms |
 
 ### Release build
 
@@ -164,20 +173,20 @@ The release-like build uses R8, resource shrinking, `CompilationMode.Partial`, t
 
 | Startup metric, 10 runs | Minimum | Median | Maximum |
 | --- | ---: | ---: | ---: |
-| Time to initial display | 94.6 ms | 101.9 ms | 114.6 ms |
+| Time to initial display | 105.9 ms | 115.9 ms | 247.9 ms |
 
 #### Maximum table startup and scrolling
 
 | Startup metric, 5 runs | Minimum | Median | Maximum |
 | --- | ---: | ---: | ---: |
-| Time to initial display | 91.8 ms | 98.4 ms | 136.7 ms |
-| Time to full display | 1,393.9 ms | 1,397.3 ms | 1,437.8 ms |
-| Measured frame count | 81 | 84 | 85 |
+| Time to initial display | 114.1 ms | 145.6 ms | 182.3 ms |
+| Time to full display | 1,502.6 ms | 1,578.0 ms | 1,652.0 ms |
+| Measured frame count | 105 | 110 | 132 |
 
 | Frame metric | P50 | P90 | P95 | P99 |
 | --- | ---: | ---: | ---: | ---: |
-| CPU frame duration | 4.9 ms | 8.8 ms | 17.4 ms | 31.8 ms |
-| Frame overrun | −9.6 ms | −5.5 ms | 1.8 ms | 20.0 ms |
+| CPU frame duration | 5.2 ms | 10.4 ms | 20.7 ms | 39.9 ms |
+| Frame overrun | −9.8 ms | −1.4 ms | 12.1 ms | 31.0 ms |
 
 Regenerate the checked-in Baseline and Startup Profiles with:
 
@@ -200,7 +209,7 @@ The following improvements are intentionally outside the current requirements:
 - Process-death restoration for the generated table, edits, and selected cells
 - Persistent storage, import/export, and sharing of table data
 - Undo/redo, copy/paste, bulk selection, sorting, filtering, and search
-- Phone, foldable, multi-window, and desktop layouts
+- Phone-first and desktop-first layouts
 - Release signing and store publishing
 
 ## Git workflow
