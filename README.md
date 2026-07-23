@@ -81,7 +81,7 @@ The application follows a layered modular structure with dependencies pointing t
 
 ## Testing
 
-The test suite currently contains 52 tests: 44 JVM unit tests and 8 device tests. The combined test run completed successfully on the Pixel Tablet emulator.
+The test suite currently contains 52 scenarios: 38 JVM unit tests, 10 device UI tests, and 4 macrobenchmark or baseline-profile scenarios. The JVM and UI suites completed successfully on an Android 15 tablet emulator.
 
 Implemented test types:
 
@@ -169,6 +169,18 @@ The following improvements are intentionally outside the current requirements:
 - Localization and a full accessibility audit for screen readers and alternative input devices
 - Physical-device performance validation and further optimization of large-table scrolling
 - Automated profile regeneration, release signing, store publishing, and CI/CD delivery
+
+## Git workflow
+
+The project uses a feature-based Git Flow:
+
+1. Create `feature/<name>` from `develop`.
+2. Keep commits focused and use Conventional Commits.
+3. Push the feature branch and merge it into `develop` with a dedicated merge commit.
+4. Verify and push `develop`.
+5. Merge `develop` into `main` with a dedicated release merge commit, then push `main`.
+
+Feature branches are never merged directly into `main`, and shared branches must not be force-pushed.
 
 ## Build and verification
 
