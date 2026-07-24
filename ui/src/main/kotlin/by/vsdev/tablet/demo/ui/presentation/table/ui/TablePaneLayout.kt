@@ -1,22 +1,15 @@
 package by.vsdev.tablet.demo.ui.presentation.table.ui
 
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.recalculateWindowInsets
 import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-import androidx.compose.material3.VerticalDragHandle
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.WindowAdaptiveInfo
 import androidx.compose.material3.adaptive.layout.AnimatedPane
-import androidx.compose.material3.adaptive.layout.PaneExpansionAnchor
-import androidx.compose.material3.adaptive.layout.PaneExpansionState
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
-import androidx.compose.material3.adaptive.layout.ThreePaneScaffoldScope
 import androidx.compose.material3.adaptive.layout.rememberPaneExpansionState
 import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -29,9 +22,13 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import by.vsdev.tablet.demo.ui.R
+import by.vsdev.tablet.demo.ui.components.layout.AppPaneDragHandle
+import by.vsdev.tablet.demo.ui.components.layout.BALANCED_PANE_ANCHOR_INDEX
 import by.vsdev.tablet.demo.ui.components.layout.EQUAL_VERTICAL_PANE_HEIGHT_FRACTION
 import by.vsdev.tablet.demo.ui.components.layout.HorizontalHingePaneScaffold
+import by.vsdev.tablet.demo.ui.components.layout.StandardPaneExpansionAnchors
 import by.vsdev.tablet.demo.ui.components.layout.horizontalSeparatingHingeBounds
+import by.vsdev.tablet.demo.ui.components.layout.supportsHorizontalPaneExpansion
 import by.vsdev.tablet.demo.ui.presentation.table.MAX_CELL_TEXT_LENGTH
 import by.vsdev.tablet.demo.ui.presentation.table.TableIntent
 import by.vsdev.tablet.demo.ui.presentation.table.TableUiState
@@ -40,18 +37,8 @@ internal const val TABLE_MAIN_PANE_TAG = "tableMainPane"
 internal const val TABLE_EDITOR_PANE_TAG = "tableEditorPane"
 internal const val TABLE_PANE_DRAG_HANDLE_TAG = "tablePaneDragHandle"
 
-private const val NARROW_PANE_PROPORTION = 0.33f
-private const val BALANCED_PANE_PROPORTION = 0.5f
-private const val WIDE_PANE_PROPORTION = 0.67f
-private const val BALANCED_PANE_ANCHOR_INDEX = 1
 private const val MAIN_PANE_STATE_KEY = "mainPane"
 private const val EDITOR_PANE_STATE_KEY = "editorPane"
-private val PaneExpansionAnchors =
-    listOf(
-        PaneExpansionAnchor.Proportion(NARROW_PANE_PROPORTION),
-        PaneExpansionAnchor.Proportion(BALANCED_PANE_PROPORTION),
-        PaneExpansionAnchor.Proportion(WIDE_PANE_PROPORTION),
-    )
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
@@ -100,7 +87,12 @@ internal fun TablePaneLayout(
         navigator = navigator,
         mainPaneTitle = mainPaneTitle,
         restoreFocusIndex = restoreFocusIndex,
-        useEqualHeightTabletopPanes = windowAdaptiveInfo.windowPosture.isTabletop,
+        useEqualHeightVerticalPanes =
+            windowAdaptiveInfo.windowPosture.isTabletop ||
+                (
+                    state.editingIndex != null &&
+                        navigator.scaffoldDirective.maxVerticalPartitions > 1
+                ),
         paneStateHolder = paneStateHolder,
         editorDraft = editorDraft,
         onIntent = onIntent,
@@ -157,7 +149,7 @@ private fun TableMaterialPaneLayout(
     navigator: ThreePaneScaffoldNavigator<Int>,
     mainPaneTitle: String,
     restoreFocusIndex: Int?,
-    useEqualHeightTabletopPanes: Boolean,
+    useEqualHeightVerticalPanes: Boolean,
     paneStateHolder: SaveableStateHolder,
     editorDraft: TextFieldState,
     onIntent: (TableIntent) -> Unit,
@@ -168,7 +160,7 @@ private fun TableMaterialPaneLayout(
     val paneExpansionState =
         rememberPaneExpansionState(
             keyProvider = navigator.scaffoldValue,
-            anchors = PaneExpansionAnchors,
+            anchors = StandardPaneExpansionAnchors,
             initialAnchoredIndex = BALANCED_PANE_ANCHOR_INDEX,
         )
     val supportsHorizontalPaneExpansion = navigator.supportsHorizontalPaneExpansion
@@ -193,7 +185,7 @@ private fun TableMaterialPaneLayout(
             AnimatedPane(
                 modifier =
                     (
-                        if (useEqualHeightTabletopPanes) {
+                        if (useEqualHeightVerticalPanes) {
                             Modifier.preferredHeight(EQUAL_VERTICAL_PANE_HEIGHT_FRACTION)
                         } else {
                             Modifier
@@ -216,7 +208,7 @@ private fun TableMaterialPaneLayout(
             },
         paneExpansionDragHandle =
             if (supportsHorizontalPaneExpansion) {
-                { state -> TablePaneDragHandle(state) }
+                { state -> AppPaneDragHandle(state, Modifier.testTag(TABLE_PANE_DRAG_HANDLE_TAG)) }
             } else {
                 null
             },
@@ -270,26 +262,3 @@ private fun Modifier.tablePaneSemantics(
             paneTitle = title
             isTraversalGroup = true
         }
-
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
-private val ThreePaneScaffoldNavigator<*>.supportsHorizontalPaneExpansion: Boolean
-    get() =
-        scaffoldDirective.maxHorizontalPartitions > 1 &&
-            scaffoldDirective.excludedBounds.isEmpty()
-
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
-@Composable
-private fun ThreePaneScaffoldScope.TablePaneDragHandle(state: PaneExpansionState) {
-    val interactionSource = remember { MutableInteractionSource() }
-    VerticalDragHandle(
-        modifier =
-            Modifier
-                .testTag(TABLE_PANE_DRAG_HANDLE_TAG)
-                .paneExpansionDraggable(
-                    state,
-                    LocalMinimumInteractiveComponentSize.current,
-                    interactionSource,
-                ),
-        interactionSource = interactionSource,
-    )
-}

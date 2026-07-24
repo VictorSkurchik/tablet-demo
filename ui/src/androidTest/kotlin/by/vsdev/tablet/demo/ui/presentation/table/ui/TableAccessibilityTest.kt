@@ -1,8 +1,11 @@
 package by.vsdev.tablet.demo.ui.presentation.table.ui
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.platform.LocalInputModeManager
@@ -16,6 +19,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.ui.presentation.table.CellUiState
 import by.vsdev.tablet.demo.ui.presentation.table.TableIntent
@@ -84,6 +88,37 @@ class TableAccessibilityTest {
         composeRule
             .onNodeWithContentDescription("Row 50, column 2: Cell 99")
             .assertIsFocused()
+    }
+
+    @Test
+    fun gridRestoresFocusWithoutMovingAnAlreadyVisibleCell() {
+        var restoreFocusIndex by mutableStateOf<Int?>(null)
+        lateinit var inputModeManager: InputModeManager
+        composeRule.setContent {
+            inputModeManager = LocalInputModeManager.current
+            AppTheme {
+                Box(Modifier.height(360.dp)) {
+                    TableGrid(
+                        columns = 2,
+                        cells = List(100) { CellUiState("Cell $it") },
+                        restoreFocusIndex = restoreFocusIndex,
+                        onIntent = {},
+                    )
+                }
+            }
+        }
+        val target =
+            composeRule.onNodeWithContentDescription("Row 3, column 1: Cell 4")
+        val topBeforeRestore = target.fetchSemanticsNode().boundsInRoot.top
+
+        composeRule.runOnIdle {
+            inputModeManager.requestInputMode(InputMode.Keyboard)
+            restoreFocusIndex = 4
+        }
+
+        target.assertIsFocused()
+        val topAfterRestore = target.fetchSemanticsNode().boundsInRoot.top
+        assertEquals(topBeforeRestore, topAfterRestore, 1f)
     }
 
     @Test
