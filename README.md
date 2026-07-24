@@ -4,7 +4,7 @@
 ![Android](https://img.shields.io/badge/Android-API%2028%2B-3DDC84?logo=android&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2026.06.01-4285F4?logo=jetpackcompose&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.1-02303A?logo=gradle&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-94%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-96%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/Line%20coverage-95.3%25-brightgreen)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
@@ -44,7 +44,9 @@ The setup screen validates the supported range before enabling table generation.
 
 ### Table and cell editor
 
-The table screen displays an 8 × 4 data set, several selected cells, and the active cell editor alongside the visible on-screen IME. The table contracts while the editor remains fully accessible above the keyboard.
+The table screen displays an 8 × 4 data set, several selected cells, and the
+active cell editor. The on-screen keyboard is dismissed so the screenshot
+contains only the application UI.
 
 <p align="center">
   <img src="./docs/screenshots/table-edit-screen.png" alt="Table screen with selected cells and the cell editor" width="100%">
@@ -89,9 +91,9 @@ The application follows a layered modular structure with dependencies pointing t
 
 ## Testing
 
-The project contains 98 automated scenarios: 59 JVM unit tests, 35 device UI
+The project contains 100 automated scenarios: 59 JVM unit tests, 37 device UI
 tests, and 4 separately executed macrobenchmark or baseline-profile scenarios.
-All 94 JVM and UI tests are enforced by the build.
+All 96 JVM and UI tests are enforced by the build.
 
 Implemented test types:
 
