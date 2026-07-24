@@ -249,10 +249,139 @@ trusted machine, review the diff, and then rerun the strict build:
 
 ## Benchmarks
 
-Remeasured on 24 July 2026 on a Pixel Tablet emulator running Android 15 at
-2560 × 1600 and 60 Hz, with system animations disabled.
+### Physical Samsung SM-S931B — 24 July 2026
 
-### Debug build
+A real-device debug/release pass was performed on the connected Samsung
+SM-S931B running Android 16 (API 36, arm64-v8a). The physical panel was running
+at 120 Hz. For the test only, ADB simulated a portrait tablet display:
+
+| Display state | `wm size` | `wm density` | Effective window |
+| --- | --- | --- | --- |
+| Before the test | Physical 1080 × 2340, no size override | Physical 480, override 450 | Phone profile |
+| Tablet test profile | Override 1600 × 2560 | Override 320 | `sw800dp`, 800 × 1280 dp |
+| After the test | Physical 1080 × 2340, no size override | Physical 480, override 450 | Original phone profile |
+
+Automatic rotation was also restored to its recorded values
+(`wm user-rotation free`, `accelerometer_rotation=1`, `user_rotation=0`).
+The temporary device-side trace directory was removed after the run.
+
+#### Builds and installation
+
+The debug, release, benchmark application, and benchmark test APKs all built
+successfully. The unsigned release APK was post-signed for this local device
+run with the default Android debug keystore:
+
+| Variant | Installed artifact | Verification | Single cold launch |
+| --- | --- | --- | ---: |
+| Debug | `app/build/outputs/apk/debug/app-debug.apk` | Debuggable; includes JaCoCo and LeakCanary | 562 ms |
+| Release | `app/build/outputs/apk/release/app-release-default-keystore.apk` | Zipaligned, APK Signature Scheme v3, not debuggable or profileable | 219 ms |
+
+The release test certificate is the standard `androiddebugkey` from
+`$HOME/.android/debug.keystore` (`CN=Android Debug`, SHA-256
+`3bbb90a6111f70acb742c7c148b5b953b21cca1614fca10c938695603a4b5562`).
+This is a local test artifact, not a production signing configuration. The
+cold-launch figures above are single Activity Manager samples and should not be
+treated as a statistical startup benchmark.
+
+#### Maximum-table journey
+
+Both installed variants manually completed the same journey: enter 1,000 rows
+and 6 columns, build the table, verify the `Table · 1000 × 6` screen, and
+perform five rapid vertical swipes inside the grid.
+
+#### Isolated rapid-scroll measurement
+
+`dumpsys gfxinfo` was reset immediately before the five-swipe burst. The
+release figures are the meaningful product result; debug is shown to quantify
+the expected cost of coverage and leak-detection instrumentation.
+
+| Frame metric | Debug | Signed minified release |
+| --- | ---: | ---: |
+| Frames rendered | 24 | 340 |
+| Janky frames | 18 (75.00%) | 21 (6.18%) |
+| P50 | 53 ms | 7 ms |
+| P90 | 121 ms | 16 ms |
+| P95 | 125 ms | 22 ms |
+| P99 | 150 ms | 40 ms |
+
+| Process memory | Debug, before → after | Release, before → after |
+| --- | ---: | ---: |
+| Total PSS | 229,181 → 253,800 KB | 160,988 → 125,197 KB |
+| Total RSS | 360,148 → 386,120 KB | 293,720 → 259,732 KB |
+
+The release run does not show a leak signal: memory fell after the burst as
+graphics caches were reclaimed. The release median fits the 8.33 ms frame
+budget of a 120 Hz display, but P90/P95 do not, and 6.18% jank is slightly above
+the report's aggressive ≤5% target. The maximum-table scroll is therefore
+usable and dramatically better than debug, but it is not yet a clean 120 Hz
+result; the long-tail frames remain the optimization target.
+
+#### Physical-device Macrobenchmark
+
+`TableMacrobenchmark.maximumTableStartupAndScroll` passed all five cold
+iterations. The rule uses `CompilationMode.Partial()` and ART confirmed
+`speed-profile` compilation. These frame metrics cover the complete mixed
+journey—cold startup, input, construction of 6,000 cells, and scrolling—so they
+must not be read as scroll-only numbers.
+
+| Startup metric, 5 runs | Minimum | Median | Maximum |
+| --- | ---: | ---: | ---: |
+| Time to initial display | 153.6 ms | 154.6 ms | 169.1 ms |
+| Time to full display | 1,760.9 ms | 1,813.1 ms | 1,821.3 ms |
+| Measured frame count | 290 | 293 | 299 |
+
+| Frame metric | P50 | P90 | P95 | P99 |
+| --- | ---: | ---: | ---: | ---: |
+| CPU frame duration | 4.9 ms | 7.6 ms | 9.7 ms | 43.5 ms |
+| Frame overrun | −0.1 ms | 2.6 ms | 7.6 ms | 46.7 ms |
+
+Frame count was stable across runs (1.32% coefficient of variation), while the
+positive P90 frame overrun and high P99 confirm a tail-jank problem under the
+combined worst-case journey. Logcat also contains Adreno Vulkan shader
+compilation failures during the cold iterations; they correlate with the run
+but are not, by themselves, proof of the root cause.
+
+The source JSON and five generated Perfetto traces are under
+`benchmark/build/outputs/connected_android_test_additional_output/benchmarkRelease/connected/SM-S931B - 16/`.
+
+#### Recomposition assessment
+
+An exact per-composable recomposition count is intentionally not claimed. The
+recorded benchmark trace contains frame, CPU, scheduler, and rendering data,
+but this build did not expose Compose runtime-tracing names, and a Layout
+Inspector counter capture was not completed. Frame count is not a valid proxy
+for recomposition count.
+
+For this screen, normal scrolling would keep the route, scaffold, and table
+container at zero recompositions after reset; newly entering lazy-grid cells
+may be composed, while the scroll indicator should redraw without recomposing
+the whole table. Consequently, per-composable recomposition normality remains
+unverified. The measured release frame tail already shows that the
+maximum-load path deserves further profiling even though no runaway memory
+growth was observed.
+
+#### Test outcome and benchmark regression
+
+- Manual debug and signed-release journeys passed without a crash or ANR.
+- The physical-device Macrobenchmark passed (1 test, 5 measured iterations).
+- The two Compose `AppJourneyTest` smoke journeys timed out after 5 seconds
+  while waiting for the table title on this One UI/API 36 profile. Manual
+  execution of the same journeys succeeded, and logcat contained no app crash
+  or ANR, so this is recorded as a physical test-harness failure rather than an
+  application failure. The HTML report is at
+  `app/build/reports/androidTests/connected/debug/index.html`.
+- The portrait two-pane profile exposed a Macrobenchmark gesture bug: the
+  swipe used the full display height rather than the table bounds.
+  `TableJourney.flingTable()` now derives both Y coordinates from the
+  scrollable grid's visible bounds. The physical Macrobenchmark passed after
+  that correction.
+
+### Pixel Tablet emulator reference
+
+The reference below was remeasured on 24 July 2026 on a Pixel Tablet emulator
+running Android 15 at 2560 × 1600 and 60 Hz, with system animations disabled.
+
+#### Debug build
 
 The development build includes JaCoCo and LeakCanary and does not use R8 optimization.
 
@@ -260,17 +389,17 @@ The development build includes JaCoCo and LeakCanary and does not use R8 optimiz
 | --- | ---: | ---: |
 | Activity Manager, 5 runs | 819 ms | 765 ms |
 
-### Release build
+#### Release build
 
 The release-like build uses R8, resource shrinking, `CompilationMode.Partial`, the Baseline Profile, and the Startup Profile. ART confirmed `speed-profile` compilation, and R8 marked the primary `classes.dex` as startup-optimized.
 
-#### Setup screen cold startup
+##### Setup screen cold startup
 
 | Startup metric, 10 runs | Minimum | Median | Maximum |
 | --- | ---: | ---: | ---: |
 | Time to initial display | 104.4 ms | 119.5 ms | 196.3 ms |
 
-#### Maximum table startup and scrolling
+##### Maximum table startup and scrolling
 
 | Startup metric, 5 runs | Minimum | Median | Maximum |
 | --- | ---: | ---: | ---: |
