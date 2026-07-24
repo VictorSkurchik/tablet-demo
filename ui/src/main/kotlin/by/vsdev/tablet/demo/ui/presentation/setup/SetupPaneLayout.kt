@@ -22,6 +22,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -48,6 +49,7 @@ private data class SetupFormContent(
     val showHeader: Boolean,
     val rowsModifier: Modifier,
     val columnsModifier: Modifier,
+    val onFocusRestorationDisabled: () -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
@@ -62,6 +64,7 @@ internal fun SetupPaneLayout(
     navigator: ThreePaneScaffoldNavigator<Any>,
     rowsModifier: Modifier,
     columnsModifier: Modifier,
+    onFocusRestorationDisabled: () -> Unit,
 ) {
     val supportingPaneVisible =
         navigator.scaffoldValue[SupportingPaneScaffoldRole.Supporting] != PaneAdaptedValue.Hidden
@@ -78,6 +81,7 @@ internal fun SetupPaneLayout(
             showHeader = !hasSeparateIntroPane,
             rowsModifier = rowsModifier,
             columnsModifier = columnsModifier,
+            onFocusRestorationDisabled = onFocusRestorationDisabled,
         )
     val formPaneContent: @Composable () -> Unit = {
         movableFormContent(formContent)
@@ -111,6 +115,7 @@ internal fun SetupPaneLayout(
         useEqualHeightVerticalPanes = navigator.scaffoldDirective.maxVerticalPartitions > 1,
         mainPaneContent = mainPaneContent,
         supportingPaneContent = supportingPaneContent,
+        onFocusRestorationDisabled = onFocusRestorationDisabled,
     )
 }
 
@@ -127,6 +132,7 @@ private fun rememberMovableSetupFormContent(): @Composable (SetupFormContent) ->
                 showHeader = content.showHeader,
                 rowsModifier = content.rowsModifier,
                 columnsModifier = content.columnsModifier,
+                onFocusRestorationDisabled = content.onFocusRestorationDisabled,
             )
         }
     }
@@ -155,6 +161,7 @@ private fun SetupMaterialPaneLayout(
     useEqualHeightVerticalPanes: Boolean,
     mainPaneContent: @Composable () -> Unit,
     supportingPaneContent: @Composable () -> Unit,
+    onFocusRestorationDisabled: () -> Unit,
 ) {
     val paneExpansionState =
         rememberPaneExpansionState(
@@ -199,7 +206,14 @@ private fun SetupMaterialPaneLayout(
         paneExpansionDragHandle =
             if (supportsHorizontalPaneExpansion) {
                 { state ->
-                    AppPaneDragHandle(state, Modifier.testTag(SETUP_PANE_DRAG_HANDLE_TAG))
+                    AppPaneDragHandle(
+                        state,
+                        Modifier
+                            .testTag(SETUP_PANE_DRAG_HANDLE_TAG)
+                            .onFocusChanged {
+                                if (it.isFocused) onFocusRestorationDisabled()
+                            },
+                    )
                 }
             } else {
                 null
@@ -217,6 +231,7 @@ private fun SetupFormScaffold(
     showHeader: Boolean,
     rowsModifier: Modifier,
     columnsModifier: Modifier,
+    onFocusRestorationDisabled: () -> Unit,
 ) {
     Scaffold(modifier = Modifier.testTag(SETUP_FORM_PANE_TAG)) { innerPadding ->
         SetupForm(
@@ -233,6 +248,7 @@ private fun SetupFormScaffold(
             showHeader = showHeader,
             rowsModifier = rowsModifier,
             columnsModifier = columnsModifier,
+            onFocusRestorationDisabled = onFocusRestorationDisabled,
         )
     }
 }

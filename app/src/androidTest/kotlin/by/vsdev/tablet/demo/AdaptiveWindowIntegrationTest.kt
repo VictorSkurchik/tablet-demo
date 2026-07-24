@@ -1,9 +1,11 @@
 package by.vsdev.tablet.demo
 
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -238,6 +240,33 @@ class AdaptiveWindowIntegrationTest {
         composeRule.onNodeWithTag(EDITOR_FIELD_TAG).assertTextContains(DRAFT)
     }
 
+    @Test
+    fun setupValuesAndFocusedColumnSurviveActivityRecreation() {
+        setDisplaySize(WidthSizeClass.EXPANDED)
+        val rowsField = hasSetTextAction() and hasText("Rows")
+        val columnsField = hasSetTextAction() and hasText("Columns")
+
+        composeRule.onNode(rowsField).performTextInput(SETUP_ROWS_INPUT)
+        composeRule.onNode(columnsField).performTextInput(SETUP_COLUMNS_INPUT)
+        composeRule.onNode(columnsField).assertIsFocused()
+
+        composeRule.activityRule.scenario.recreate()
+
+        composeRule.waitUntil(timeoutMillis = TIMEOUT_MILLIS) {
+            composeRule.onAllNodes(rowsField).fetchSemanticsNodes().size == 1 &&
+                composeRule.onAllNodes(columnsField).fetchSemanticsNodes().size == 1
+        }
+        composeRule.onNode(rowsField).assertTextContains(SETUP_ROWS_INPUT)
+        composeRule.onNode(columnsField).assertTextContains(SETUP_COLUMNS_INPUT)
+        composeRule.waitUntil(timeoutMillis = TIMEOUT_MILLIS) {
+            composeRule
+                .onAllNodes(columnsField and isFocused())
+                .fetchSemanticsNodes()
+                .size == 1
+        }
+        composeRule.onNode(columnsField).assertIsFocused()
+    }
+
     private fun setDisplaySize(widthSizeClass: WidthSizeClass) {
         onDevice()
             .perform(
@@ -374,6 +403,8 @@ class AdaptiveWindowIntegrationTest {
         const val SECOND_HORIZONTAL_HINGE_CENTER_NUMERATOR = 9
         const val SECOND_HORIZONTAL_HINGE_CENTER_DENOMINATOR = 16
         const val DRAFT = "Draft survives real resize"
+        const val SETUP_ROWS_INPUT = "4"
+        const val SETUP_COLUMNS_INPUT = "3"
         const val SETUP_FORM_PANE_TAG = "setupFormPane"
         const val SETUP_SUPPORTING_PANE_TAG = "setupSupportingPane"
         const val TABLE_MAIN_PANE_TAG = "tableMainPane"
