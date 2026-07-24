@@ -299,8 +299,7 @@ class AdaptiveWindowIntegrationTest {
 
         val formBounds = formNodes.single().boundsInRoot
         val supportingBounds = supportingNodes.single().boundsInRoot
-        return (formBounds.right <= hingeLeft && supportingBounds.left >= hingeRight) ||
-            (supportingBounds.right <= hingeLeft && formBounds.left >= hingeRight)
+        return supportingBounds.right <= hingeLeft && formBounds.left >= hingeRight
     }
 
     private fun setupPanesAreAboveAndBelow(
@@ -315,8 +314,7 @@ class AdaptiveWindowIntegrationTest {
 
         val formBounds = formNodes.single().boundsInRoot
         val supportingBounds = supportingNodes.single().boundsInRoot
-        return (formBounds.bottom <= hingeTop && supportingBounds.top >= hingeBottom) ||
-            (supportingBounds.bottom <= hingeTop && formBounds.top >= hingeBottom)
+        return supportingBounds.bottom <= hingeTop && formBounds.top >= hingeBottom
     }
 
     private fun setupPanesOccupyRegionsBetweenAndBelow(
@@ -333,10 +331,10 @@ class AdaptiveWindowIntegrationTest {
 
         val formBounds = formNodes.single().boundsInRoot
         val supportingBounds = supportingNodes.single().boundsInRoot
-        return formBounds.top.isWithinOnePixelOf(firstHingeBottom) &&
-            formBounds.bottom.isWithinOnePixelOf(secondHingeTop) &&
-            supportingBounds.top.isWithinOnePixelOf(secondHingeBottom) &&
-            supportingBounds.bottom.isWithinOnePixelOf(windowBottom)
+        return supportingBounds.top.isWithinOnePixelOf(firstHingeBottom) &&
+            supportingBounds.bottom.isWithinOnePixelOf(secondHingeTop) &&
+            formBounds.top.isWithinOnePixelOf(secondHingeBottom) &&
+            formBounds.bottom.isWithinOnePixelOf(windowBottom)
     }
 
     private fun setupPanesOccupyMixedHingeSafeRegions(
@@ -354,14 +352,14 @@ class AdaptiveWindowIntegrationTest {
 
         val formBounds = formNodes.single().boundsInRoot
         val supportingBounds = supportingNodes.single().boundsInRoot
-        return formBounds.left.isWithinOnePixelOf(verticalHingeRight) &&
-            formBounds.top.isWithinOnePixelOf(0f) &&
-            formBounds.right.isWithinOnePixelOf(windowRight) &&
-            formBounds.bottom.isWithinOnePixelOf(horizontalHingeTop) &&
-            supportingBounds.left.isWithinOnePixelOf(verticalHingeRight) &&
-            supportingBounds.top.isWithinOnePixelOf(horizontalHingeBottom) &&
+        return supportingBounds.left.isWithinOnePixelOf(verticalHingeRight) &&
+            supportingBounds.top.isWithinOnePixelOf(0f) &&
             supportingBounds.right.isWithinOnePixelOf(windowRight) &&
-            supportingBounds.bottom.isWithinOnePixelOf(windowBottom)
+            supportingBounds.bottom.isWithinOnePixelOf(horizontalHingeTop) &&
+            formBounds.left.isWithinOnePixelOf(verticalHingeRight) &&
+            formBounds.top.isWithinOnePixelOf(horizontalHingeBottom) &&
+            formBounds.right.isWithinOnePixelOf(windowRight) &&
+            formBounds.bottom.isWithinOnePixelOf(windowBottom)
     }
 
     private fun Float.isWithinOnePixelOf(expected: Float): Boolean = abs(this - expected) <= 1f

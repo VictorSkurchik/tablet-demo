@@ -53,6 +53,15 @@ class SetupAdaptiveLayoutTest {
         composeRule.onNode(hasSetTextAction() and hasText("Rows")).assertTextContains("4")
         composeRule.onNode(hasSetTextAction() and hasText("Columns")).assertTextContains("3")
         composeRule.onNodeWithText("Build table").assertExists()
+
+        val introBounds =
+            composeRule.onNodeWithTag(SETUP_SUPPORTING_PANE_TAG).fetchSemanticsNode().boundsInRoot
+        val formBounds =
+            composeRule.onNodeWithTag(SETUP_FORM_PANE_TAG).fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "The setup introduction should be before the form in a wide window",
+            introBounds.right <= formBounds.left,
+        )
     }
 
     @Test
@@ -93,12 +102,12 @@ class SetupAdaptiveLayoutTest {
             composeRule.onNodeWithTag(SETUP_SUPPORTING_PANE_TAG).fetchSemanticsNode().boundsInRoot
 
         assertTrue(
-            "The setup form should end at the physical hinge",
-            abs(formBounds.bottom - hingeBounds.top) <= 1f,
+            "The setup introduction should end at the physical hinge",
+            abs(supportingBounds.bottom - hingeBounds.top) <= 1f,
         )
         assertTrue(
-            "The supporting pane should start after the physical hinge",
-            abs(supportingBounds.top - hingeBounds.bottom) <= 1f,
+            "The setup form should start after the physical hinge",
+            abs(formBounds.top - hingeBounds.bottom) <= 1f,
         )
     }
 

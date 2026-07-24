@@ -1,6 +1,10 @@
 package by.vsdev.tablet.demo.ui.components
 
+import androidx.compose.foundation.interaction.Interaction
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
@@ -10,6 +14,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -77,6 +82,51 @@ class SelectableCellTest {
             assertEquals(1, edits)
             assertEquals(emptyList<Boolean>(), haptics.selectionStates)
             assertEquals(1, haptics.editCount)
+        }
+    }
+
+    @Test
+    fun doubleClick_usesOneContinuousPressInteraction() {
+        val interactionSource = MutableInteractionSource()
+        val interactions = mutableListOf<Interaction>()
+        setCell(
+            interactionSource = interactionSource,
+            onInteraction = interactions::add,
+        )
+
+        composeRule
+            .onNodeWithContentDescription(CELL_DESCRIPTION)
+            .performTouchInput { doubleClick() }
+
+        composeRule.waitUntil(timeoutMillis = 2_000) { interactions.size >= 2 }
+        composeRule.runOnIdle {
+            assertEquals(2, interactions.size)
+            val press = interactions.single { it is PressInteraction.Press }
+            val release = interactions.single { it is PressInteraction.Release }
+            assertEquals(press, (release as PressInteraction.Release).press)
+        }
+    }
+
+    @Test
+    fun touchClick_invokesSelectionOnce() {
+        var clicks = 0
+        var edits = 0
+        val haptics = RecordingAppHaptics()
+        setCell(
+            haptics = haptics,
+            onClick = { clicks++ },
+            onDoubleClick = { edits++ },
+        )
+
+        composeRule
+            .onNodeWithContentDescription(CELL_DESCRIPTION)
+            .performTouchInput { click() }
+
+        composeRule.waitUntil(timeoutMillis = 2_000) { clicks == 1 }
+        composeRule.runOnIdle {
+            assertEquals(0, edits)
+            assertEquals(listOf(true), haptics.selectionStates)
+            assertEquals(0, haptics.editCount)
         }
     }
 
@@ -155,10 +205,17 @@ class SelectableCellTest {
         haptics: AppHaptics = RecordingAppHaptics(),
         onClick: () -> Unit = {},
         onDoubleClick: () -> Unit = {},
+        interactionSource: MutableInteractionSource? = null,
+        onInteraction: ((Interaction) -> Unit)? = null,
     ) {
         composeRule.setContent {
             AppTheme {
                 CompositionLocalProvider(LocalAppHaptics provides haptics) {
+                    if (interactionSource != null && onInteraction != null) {
+                        LaunchedEffect(interactionSource, onInteraction) {
+                            interactionSource.interactions.collect(onInteraction)
+                        }
+                    }
                     SelectableCell(
                         text = "Cell value",
                         selected = selected,
@@ -171,6 +228,7 @@ class SelectableCellTest {
                         editLabel = "Edit cell",
                         onClick = onClick,
                         onDoubleClick = onDoubleClick,
+                        interactionSource = interactionSource,
                     )
                 }
             }
