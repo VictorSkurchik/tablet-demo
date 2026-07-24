@@ -16,6 +16,8 @@ kotlin {
 dependencies {
     implementation(project(":domain"))
 
+    implementation(libs.kotlinx.collections.immutable)
+
     implementation(platform(libs.kotlinx.coroutines.bom))
     implementation(libs.kotlinx.coroutines.core)
 

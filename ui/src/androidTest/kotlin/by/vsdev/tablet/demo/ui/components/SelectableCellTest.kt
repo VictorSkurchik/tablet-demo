@@ -1,18 +1,18 @@
 package by.vsdev.tablet.demo.ui.components
 
-import androidx.compose.foundation.interaction.Interaction
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.doubleClick
@@ -21,6 +21,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
@@ -86,24 +87,22 @@ class SelectableCellTest {
     }
 
     @Test
-    fun doubleClick_usesOneContinuousPressInteraction() {
-        val interactionSource = MutableInteractionSource()
-        val interactions = mutableListOf<Interaction>()
+    fun mouseSingleAndDoubleClick_useTheirDistinctActions() {
+        var clicks = 0
+        var edits = 0
         setCell(
-            interactionSource = interactionSource,
-            onInteraction = interactions::add,
+            onClick = { clicks++ },
+            onDoubleClick = { edits++ },
         )
+        val cell = composeRule.onNodeWithContentDescription(CELL_DESCRIPTION)
 
-        composeRule
-            .onNodeWithContentDescription(CELL_DESCRIPTION)
-            .performTouchInput { doubleClick() }
+        cell.performMouseInput { click() }
+        composeRule.waitUntil(timeoutMillis = 2_000) { clicks == 1 }
+        cell.performMouseInput { doubleClick() }
 
-        composeRule.waitUntil(timeoutMillis = 2_000) { interactions.size >= 2 }
         composeRule.runOnIdle {
-            assertEquals(2, interactions.size)
-            val press = interactions.single { it is PressInteraction.Press }
-            val release = interactions.single { it is PressInteraction.Release }
-            assertEquals(press, (release as PressInteraction.Release).press)
+            assertEquals(1, clicks)
+            assertEquals(1, edits)
         }
     }
 
@@ -177,7 +176,7 @@ class SelectableCellTest {
     }
 
     @Test
-    fun enterTogglesSelectionWhileF2OpensEditor() {
+    fun standardActivationKeysToggleSelectionWhileF2OpensEditor() {
         var clicks = 0
         var edits = 0
         val haptics = RecordingAppHaptics()
@@ -185,17 +184,20 @@ class SelectableCellTest {
             haptics = haptics,
             onClick = { clicks++ },
             onDoubleClick = { edits++ },
+            inputMode = InputMode.Keyboard,
         )
         val cell = composeRule.onNodeWithContentDescription(CELL_DESCRIPTION)
         cell.performSemanticsAction(SemanticsActions.RequestFocus)
+        cell.assertIsFocused()
 
-        cell.performKeyInput { pressKey(Key.Enter) }
+        cell.performKeyInput { pressKey(Key.Spacebar) }
+        cell.performKeyInput { pressKey(Key.NumPadEnter) }
         cell.performKeyInput { pressKey(Key.F2) }
 
         composeRule.runOnIdle {
-            assertEquals(1, clicks)
+            assertEquals(2, clicks)
             assertEquals(1, edits)
-            assertEquals(listOf(true), haptics.selectionStates)
+            assertEquals(listOf(true, true), haptics.selectionStates)
             assertEquals(1, haptics.editCount)
         }
     }
@@ -205,17 +207,13 @@ class SelectableCellTest {
         haptics: AppHaptics = RecordingAppHaptics(),
         onClick: () -> Unit = {},
         onDoubleClick: () -> Unit = {},
-        interactionSource: MutableInteractionSource? = null,
-        onInteraction: ((Interaction) -> Unit)? = null,
+        inputMode: InputMode? = null,
     ) {
+        var inputModeManager: InputModeManager? = null
         composeRule.setContent {
+            inputModeManager = LocalInputModeManager.current
             AppTheme {
                 CompositionLocalProvider(LocalAppHaptics provides haptics) {
-                    if (interactionSource != null && onInteraction != null) {
-                        LaunchedEffect(interactionSource, onInteraction) {
-                            interactionSource.interactions.collect(onInteraction)
-                        }
-                    }
                     SelectableCell(
                         text = "Cell value",
                         selected = selected,
@@ -228,12 +226,18 @@ class SelectableCellTest {
                         editLabel = "Edit cell",
                         onClick = onClick,
                         onDoubleClick = onDoubleClick,
-                        interactionSource = interactionSource,
                     )
                 }
             }
         }
         composeRule.waitForIdle()
+        inputMode?.let { requestedMode ->
+            composeRule.runOnIdle {
+                check(checkNotNull(inputModeManager).requestInputMode(requestedMode)) {
+                    "Could not switch the test environment to $requestedMode input mode"
+                }
+            }
+        }
     }
 
     private class RecordingAppHaptics : AppHaptics {

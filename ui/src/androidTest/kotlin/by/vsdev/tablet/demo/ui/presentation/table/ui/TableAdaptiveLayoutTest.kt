@@ -24,6 +24,7 @@ import by.vsdev.tablet.demo.ui.presentation.table.CellUiState
 import by.vsdev.tablet.demo.ui.presentation.table.TableLoadState
 import by.vsdev.tablet.demo.ui.presentation.table.TableUiState
 import by.vsdev.tablet.demo.ui.theme.AppTheme
+import kotlinx.collections.immutable.toPersistentList
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -45,7 +46,10 @@ class TableAdaptiveLayoutTest {
             mutableStateOf(
                 TableUiState(
                     config = TableConfig(rows = 2, columns = 2),
-                    loadState = TableLoadState.Content(List(4) { CellUiState("Value $it") }),
+                    loadState =
+                        TableLoadState.Content(
+                            List(4) { CellUiState("Value $it") }.toPersistentList(),
+                        ),
                     editingIndex = 0,
                 ),
             )
@@ -185,7 +189,7 @@ class TableAdaptiveLayoutTest {
                                 config = TableConfig(rows = 2, columns = 2),
                                 loadState =
                                     TableLoadState.Content(
-                                        List(4) { CellUiState("Value $it") },
+                                        List(4) { CellUiState("Value $it") }.toPersistentList(),
                                     ),
                                 editingIndex = 0,
                             ),
@@ -229,7 +233,7 @@ class TableAdaptiveLayoutTest {
                                 config = TableConfig(rows = 2, columns = 2),
                                 loadState =
                                     TableLoadState.Content(
-                                        List(4) { CellUiState("Value $it") },
+                                        List(4) { CellUiState("Value $it") }.toPersistentList(),
                                     ),
                                 editingIndex = 0,
                             ),

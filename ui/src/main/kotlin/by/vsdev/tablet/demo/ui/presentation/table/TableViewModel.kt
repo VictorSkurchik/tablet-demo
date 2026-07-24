@@ -2,10 +2,10 @@ package by.vsdev.tablet.demo.ui.presentation.table
 
 import androidx.lifecycle.viewModelScope
 import by.vsdev.tablet.demo.domain.model.TableConfig
-import by.vsdev.tablet.demo.domain.model.TableDataResult
 import by.vsdev.tablet.demo.domain.usecase.GenerateTableDataUseCase
 import by.vsdev.tablet.demo.domain.util.BackgroundDispatcher
-import by.vsdev.tablet.demo.ui.mvi.MviViewModel
+import by.vsdev.tablet.demo.ui.mvi.StateViewModel
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -15,7 +15,7 @@ internal class TableViewModel(
     private val config: TableConfig,
     private val generateTableData: GenerateTableDataUseCase,
     private val backgroundDispatcher: BackgroundDispatcher,
-) : MviViewModel<TableUiState, TableIntent>(TableUiState(config = config)) {
+) : StateViewModel<TableUiState>(TableUiState(config = config)) {
     private var loadJob: Job? = null
 
     init {
@@ -28,17 +28,16 @@ internal class TableViewModel(
         loadJob =
             viewModelScope.launch {
                 try {
-                    when (val result = generateTableData(config)) {
-                        is TableDataResult.Success -> {
-                            val cells =
-                                withContext(backgroundDispatcher.value) {
-                                    result.data.cells.map { CellUiState(text = it) }
-                                }
-                            setState { copy(loadState = TableLoadState.Content(cells)) }
+                    val data = generateTableData(config)
+                    val cells =
+                        withContext(backgroundDispatcher.value) {
+                            val builder = persistentListOf<CellUiState>().builder()
+                            data.cells.forEach { text ->
+                                builder.add(CellUiState(text = text))
+                            }
+                            builder.build()
                         }
-
-                        TableDataResult.GenerationUnavailable -> showLoadError()
-                    }
+                    setState { copy(loadState = TableLoadState.Content(cells)) }
                 } catch (error: CancellationException) {
                     throw error
                 } catch (_: Exception) {
@@ -56,7 +55,7 @@ internal class TableViewModel(
         }
     }
 
-    override fun onIntent(intent: TableIntent) {
+    fun onIntent(intent: TableIntent) {
         when (intent) {
             is TableIntent.CellClicked -> toggleColor(intent.index)
             is TableIntent.CellDoubleClicked -> openEditor(intent.index)
@@ -76,9 +75,26 @@ internal class TableViewModel(
     }
 
     private fun confirmEdit(text: String) {
-        val index = state.value.editingIndex ?: return
-        updateCell(index) { copy(text = text.take(MAX_CELL_TEXT_LENGTH)) }
-        dismissEditor()
+        setState {
+            val index = editingIndex ?: return@setState this
+            val content = loadState as? TableLoadState.Content
+            val cell = content?.cells?.getOrNull(index)
+            val updatedLoadState =
+                if (content != null && cell != null) {
+                    val updatedCell = cell.copy(text = text.take(MAX_CELL_TEXT_LENGTH))
+                    if (updatedCell == cell) {
+                        content
+                    } else {
+                        TableLoadState.Content(content.cells.set(index, updatedCell))
+                    }
+                } else {
+                    loadState
+                }
+            copy(
+                loadState = updatedLoadState,
+                editingIndex = null,
+            )
+        }
     }
 
     private fun dismissEditor() {
@@ -92,8 +108,9 @@ internal class TableViewModel(
         setState {
             val content = loadState as? TableLoadState.Content ?: return@setState this
             val cell = content.cells.getOrNull(index) ?: return@setState this
-            val updatedCells = content.cells.toMutableList()
-            updatedCells[index] = cell.transform()
+            val updatedCell = cell.transform()
+            if (updatedCell == cell) return@setState this
+            val updatedCells = content.cells.set(index, updatedCell)
             copy(loadState = TableLoadState.Content(updatedCells))
         }
     }

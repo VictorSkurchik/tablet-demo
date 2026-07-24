@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -20,6 +20,7 @@ import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -38,6 +41,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import by.vsdev.tablet.demo.domain.model.TableConfig
@@ -47,7 +51,6 @@ import by.vsdev.tablet.demo.ui.R
 import by.vsdev.tablet.demo.ui.components.layout.ResponsiveFormContainer
 import by.vsdev.tablet.demo.ui.components.layout.calculateAppPaneScaffoldDirective
 import by.vsdev.tablet.demo.ui.components.molecules.NumberField
-import by.vsdev.tablet.demo.ui.mvi.CollectEffect
 import by.vsdev.tablet.demo.ui.theme.AppSpacing
 import by.vsdev.tablet.demo.ui.theme.AppTheme
 import org.koin.androidx.compose.koinViewModel
@@ -72,12 +75,13 @@ fun SetupRoute(
 ) {
     val viewModel = koinViewModel<SetupViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    CollectEffect(viewModel.navigation, onNavigateToTable)
     SetupScreen(
         state = state,
         rowsInput = viewModel.rowsInput,
         columnsInput = viewModel.columnsInput,
-        onIntent = viewModel::onIntent,
+        onBuild = {
+            viewModel.buildConfig()?.let(onNavigateToTable)
+        },
         modifier = modifier,
         windowAdaptiveInfo = windowAdaptiveInfo,
     )
@@ -89,18 +93,25 @@ internal fun SetupScreen(
     state: SetupUiState,
     rowsInput: TextFieldState,
     columnsInput: TextFieldState,
-    onIntent: (SetupIntent) -> Unit,
+    onBuild: () -> Unit,
     modifier: Modifier = Modifier,
     windowAdaptiveInfo: WindowAdaptiveInfo =
         currentWindowAdaptiveInfo(supportLargeAndXLargeWidth = true),
 ) {
     val density = LocalDensity.current
-    val imeBottom = WindowInsets.ime.getBottom(density)
     val isOnScreenKeyboardVisible = WindowInsets.isImeVisible
     val rowsRequester = remember { BringIntoViewRequester() }
     val columnsRequester = remember { BringIntoViewRequester() }
+    val rowsFocusRequester = remember { FocusRequester() }
+    val columnsFocusRequester = remember { FocusRequester() }
     var focusedField by remember { mutableStateOf<SetupField?>(null) }
     val paneNavigator = rememberSetupPaneNavigator(windowAdaptiveInfo, density)
+    RestoreSetupFieldFocus(
+        windowAdaptiveInfo,
+        focusedField,
+        rowsFocusRequester,
+        columnsFocusRequester,
+    )
 
     val screenTitle = stringResource(R.string.setup_title)
     BoxWithConstraints(
@@ -112,48 +123,92 @@ internal fun SetupScreen(
                     isTraversalGroup = true
                 },
     ) {
-        val imeHeight = with(density) { imeBottom.toDp() }
-        val useCompactImeLayout =
-            isOnScreenKeyboardVisible &&
-                imeBottom > 0 &&
-                maxHeight - imeHeight < ComfortableSetupHeight
+        val useCompactImeLayout = rememberUseCompactImeLayout(density, maxHeight)
 
-        LaunchedEffect(
+        BringFocusedSetupFieldIntoView(
             isOnScreenKeyboardVisible,
             focusedField,
-            maxHeight,
-            imeBottom,
-        ) {
-            if (isOnScreenKeyboardVisible) {
-                val requester =
-                    when (focusedField) {
-                        SetupField.Rows -> rowsRequester
-                        SetupField.Columns -> columnsRequester
-                        null -> return@LaunchedEffect
-                    }
-                withFrameNanos { }
-                requester.bringIntoView()
-            }
-        }
+            rowsRequester,
+            columnsRequester,
+        )
 
         SetupPaneLayout(
             state = state,
             rowsInput = rowsInput,
             columnsInput = columnsInput,
-            onIntent = onIntent,
+            onBuild = onBuild,
             useCompactImeLayout = useCompactImeLayout,
             windowAdaptiveInfo = windowAdaptiveInfo,
             navigator = paneNavigator,
             rowsModifier =
                 Modifier
                     .bringIntoViewRequester(rowsRequester)
+                    .focusRequester(rowsFocusRequester)
                     .trackSetupFieldFocus(SetupField.Rows, focusedField) { focusedField = it },
             columnsModifier =
                 Modifier
                     .bringIntoViewRequester(columnsRequester)
+                    .focusRequester(columnsFocusRequester)
                     .trackSetupFieldFocus(SetupField.Columns, focusedField) { focusedField = it },
         )
     }
+}
+
+@Composable
+private fun BringFocusedSetupFieldIntoView(
+    isImeVisible: Boolean,
+    focusedField: SetupField?,
+    rowsRequester: BringIntoViewRequester,
+    columnsRequester: BringIntoViewRequester,
+) {
+    LaunchedEffect(isImeVisible, focusedField) {
+        if (!isImeVisible) return@LaunchedEffect
+        val requester =
+            when (focusedField) {
+                SetupField.Rows -> rowsRequester
+                SetupField.Columns -> columnsRequester
+                null -> return@LaunchedEffect
+            }
+        withFrameNanos { }
+        requester.bringIntoView()
+    }
+}
+
+@Composable
+private fun RestoreSetupFieldFocus(
+    windowAdaptiveInfo: WindowAdaptiveInfo,
+    focusedField: SetupField?,
+    rowsRequester: FocusRequester,
+    columnsRequester: FocusRequester,
+) {
+    LaunchedEffect(windowAdaptiveInfo) {
+        val requester =
+            when (focusedField) {
+                SetupField.Rows -> rowsRequester
+                SetupField.Columns -> columnsRequester
+                null -> return@LaunchedEffect
+            }
+        withFrameNanos { }
+        requester.requestFocus()
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun rememberUseCompactImeLayout(
+    density: Density,
+    maxHeight: Dp,
+): Boolean {
+    val imeInsets = WindowInsets.imeAnimationTarget
+    val useCompactLayout by
+        remember(density, maxHeight, imeInsets) {
+            derivedStateOf {
+                val imeBottom = imeInsets.getBottom(density)
+                val imeHeight = with(density) { imeBottom.toDp() }
+                imeBottom > 0 && maxHeight - imeHeight < ComfortableSetupHeight
+            }
+        }
+    return useCompactLayout
 }
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
@@ -186,7 +241,7 @@ internal fun SetupForm(
     state: SetupUiState,
     rowsInput: TextFieldState,
     columnsInput: TextFieldState,
-    onIntent: (SetupIntent) -> Unit,
+    onBuild: () -> Unit,
     useCompactImeLayout: Boolean,
     modifier: Modifier = Modifier,
     showHeader: Boolean = true,
@@ -234,7 +289,7 @@ internal fun SetupForm(
             showSupportingText = !useCompactImeLayout || state.columnsError != null,
             onImeAction = {
                 if (state.canBuild) {
-                    onIntent(SetupIntent.BuildClicked)
+                    onBuild()
                 } else {
                     focusManager.clearFocus()
                 }
@@ -243,7 +298,7 @@ internal fun SetupForm(
         )
 
         Button(
-            onClick = { onIntent(SetupIntent.BuildClicked) },
+            onClick = onBuild,
             enabled = state.canBuild,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -270,7 +325,7 @@ private fun SetupScreenEmptyPreview() {
             state = SetupUiState(),
             rowsInput = TextFieldState(),
             columnsInput = TextFieldState(),
-            onIntent = {},
+            onBuild = {},
         )
     }
 }
@@ -283,7 +338,7 @@ private fun SetupScreenValidPreview() {
             state = SetupUiState(canBuild = true),
             rowsInput = TextFieldState("100"),
             columnsInput = TextFieldState("4"),
-            onIntent = {},
+            onBuild = {},
         )
     }
 }
@@ -300,7 +355,7 @@ private fun SetupScreenErrorPreview() {
                 ),
             rowsInput = TextFieldState("9999"),
             columnsInput = TextFieldState("9"),
-            onIntent = {},
+            onBuild = {},
         )
     }
 }

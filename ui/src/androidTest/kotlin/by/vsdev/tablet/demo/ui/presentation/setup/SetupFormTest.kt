@@ -51,7 +51,7 @@ class SetupFormTest {
             state = SetupUiState(canBuild = true),
             rows = "4",
             columns = "3",
-            onIntent = { buildClicked = it == SetupIntent.BuildClicked },
+            onBuild = { buildClicked = true },
         )
 
         composeRule.onNodeWithText("Allowed: 1–1000").assertDoesNotExist()
@@ -83,7 +83,7 @@ class SetupFormTest {
                         state = SetupUiState(canBuild = true),
                         rowsInput = TextFieldState("4"),
                         columnsInput = TextFieldState("3"),
-                        onIntent = { buildClicked = true },
+                        onBuild = { buildClicked = true },
                         useCompactImeLayout = false,
                     )
                 }
@@ -99,7 +99,7 @@ class SetupFormTest {
         state: SetupUiState,
         rows: String = "9999",
         columns: String = "0",
-        onIntent: (SetupIntent) -> Unit = {},
+        onBuild: () -> Unit = {},
     ) {
         composeRule.setContent {
             AppTheme {
@@ -107,7 +107,7 @@ class SetupFormTest {
                     state = state,
                     rowsInput = TextFieldState(rows),
                     columnsInput = TextFieldState(columns),
-                    onIntent = onIntent,
+                    onBuild = onBuild,
                     useCompactImeLayout = true,
                 )
             }

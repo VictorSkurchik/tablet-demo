@@ -1,13 +1,8 @@
 package by.vsdev.tablet.demo.ui.components.molecules
 
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.indication
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,7 +25,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.CollectionItemInfo
@@ -40,7 +33,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -132,13 +124,9 @@ internal fun SelectableCell(
     onDoubleClick: () -> Unit,
     modifier: Modifier = Modifier,
     cellHeight: Dp = selectableCellHeight(),
-    interactionSource: MutableInteractionSource? = null,
 ) {
     val appHaptics = LocalAppHaptics.current
     val inputMode = LocalInputModeManager.current.inputMode
-    val defaultInteractionSource = remember { MutableInteractionSource() }
-    val resolvedInteractionSource = interactionSource ?: defaultInteractionSource
-    val indication = LocalIndication.current
     var isFocused by remember { mutableStateOf(false) }
     val style =
         selectableCellStyle(
@@ -153,8 +141,6 @@ internal fun SelectableCell(
         appHaptics.performCellEdit()
         onDoubleClick()
     }
-    val currentSelectCell by rememberUpdatedState(selectCell)
-    val currentEditCell by rememberUpdatedState(editCell)
 
     Box(
         modifier =
@@ -165,20 +151,18 @@ internal fun SelectableCell(
                 .background(style.background)
                 .border(style.borderWidth, style.border, MaterialTheme.shapes.small)
                 .onFocusChanged { isFocused = it.isFocused }
+                .combinedClickable(
+                    onClickLabel = toggleLabel,
+                    onDoubleClick = editCell,
+                    onClick = selectCell,
+                ).cellKeyboardActions(selectCell, editCell)
                 .semantics {
                     contentDescription = cellDescription
                     collectionItemInfo = CollectionItemInfo(row, 1, column, 1)
                     this.selected = selected
                     stateDescription = if (selected) selectedDescription else notSelectedDescription
-                }.cellAccessibilityActions(toggleLabel, editLabel, selectCell, editCell)
-                .cellKeyboardActions(selectCell, editCell)
-                .focusable()
-                .indication(resolvedInteractionSource, indication)
-                .cellTouchActions(
-                    interactionSource = resolvedInteractionSource,
-                    onSelect = { currentSelectCell() },
-                    onEdit = { currentEditCell() },
-                ).padding(horizontal = AppSpacing.small),
+                }.cellAccessibilityActions(editLabel, editCell)
+                .padding(horizontal = AppSpacing.small),
         contentAlignment = Alignment.Center,
     ) {
         CellText(
@@ -189,9 +173,7 @@ internal fun SelectableCell(
 }
 
 private fun Modifier.cellAccessibilityActions(
-    toggleLabel: String,
     editLabel: String,
-    onSelect: () -> Unit,
     onEdit: () -> Unit,
 ): Modifier =
     semantics {
@@ -202,58 +184,6 @@ private fun Modifier.cellAccessibilityActions(
                     true
                 },
             )
-        onClick(label = toggleLabel) {
-            onSelect()
-            true
-        }
-    }
-
-private fun Modifier.cellTouchActions(
-    interactionSource: MutableInteractionSource,
-    onSelect: () -> Unit,
-    onEdit: () -> Unit,
-): Modifier =
-    pointerInput(interactionSource) {
-        var pendingPress: PressInteraction.Press? = null
-
-        fun finishPress(released: Boolean) {
-            val press = pendingPress ?: return
-            pendingPress = null
-            interactionSource.tryEmit(
-                if (released) {
-                    PressInteraction.Release(press)
-                } else {
-                    PressInteraction.Cancel(press)
-                },
-            )
-        }
-
-        try {
-            detectTapGestures(
-                onPress = { offset ->
-                    if (pendingPress == null) {
-                        PressInteraction.Press(offset).also { press ->
-                            pendingPress = press
-                            interactionSource.emit(press)
-                        }
-                    }
-
-                    if (!tryAwaitRelease()) {
-                        finishPress(released = false)
-                    }
-                },
-                onTap = {
-                    onSelect()
-                    finishPress(released = true)
-                },
-                onDoubleTap = {
-                    finishPress(released = true)
-                    onEdit()
-                },
-            )
-        } finally {
-            finishPress(released = false)
-        }
     }
 
 private fun Modifier.cellKeyboardActions(
@@ -267,18 +197,24 @@ private fun Modifier.cellKeyboardActions(
                 true
             }
 
-            event.type == KeyEventType.KeyUp &&
-                (event.key == Key.Enter || event.key == Key.DirectionCenter) -> {
+            event.type == KeyEventType.KeyUp && event.key.isCellActivationKey -> {
                 onSelect()
                 true
             }
 
             event.type == KeyEventType.KeyDown &&
-                (event.key == Key.Enter || event.key == Key.DirectionCenter || event.key == Key.F2) -> true
+                (event.key.isCellActivationKey || event.key == Key.F2) -> true
 
             else -> false
         }
     }
+
+private val Key.isCellActivationKey: Boolean
+    get() =
+        this == Key.Enter ||
+            this == Key.NumPadEnter ||
+            this == Key.DirectionCenter ||
+            this == Key.Spacebar
 
 @Preview
 @Composable
