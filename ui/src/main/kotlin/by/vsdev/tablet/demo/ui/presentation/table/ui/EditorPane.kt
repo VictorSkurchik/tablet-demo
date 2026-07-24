@@ -3,14 +3,12 @@ package by.vsdev.tablet.demo.ui.presentation.table.ui
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
@@ -33,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -72,8 +69,6 @@ internal fun EditorPane(
     val focusRequester = remember(index) { FocusRequester() }
     val fieldRequester = remember(index) { BringIntoViewRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val density = LocalDensity.current
-    val imeBottom = WindowInsets.ime.getBottom(density)
     val isOnScreenKeyboardVisible = WindowInsets.isImeVisible
 
     LaunchedEffect(index) {
@@ -81,15 +76,12 @@ internal fun EditorPane(
         keyboardController?.show()
     }
 
-    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         LaunchedEffect(
             index,
             isOnScreenKeyboardVisible,
-            imeBottom,
-            maxWidth,
-            maxHeight,
         ) {
-            if (isOnScreenKeyboardVisible && imeBottom > 0) {
+            if (isOnScreenKeyboardVisible) {
                 withFrameNanos { }
                 fieldRequester.bringIntoView()
             }

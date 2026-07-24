@@ -14,6 +14,7 @@ import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.WindowSize
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -48,6 +49,7 @@ class SetupAdaptiveLayoutTest {
         composeRule.onNodeWithTag(SETUP_PANE_DRAG_HANDLE_TAG).assertDoesNotExist()
         composeRule.onNode(hasSetTextAction() and hasText("Rows")).performTextInput("4")
         composeRule.onNode(hasSetTextAction() and hasText("Columns")).performTextInput("3")
+        composeRule.onNode(hasSetTextAction() and hasText("Columns")).assertIsFocused()
 
         composeRule.runOnIdle { window = window.copy(width = 900) }
 
@@ -56,7 +58,10 @@ class SetupAdaptiveLayoutTest {
         composeRule.onNodeWithTag(SETUP_PANE_DRAG_HANDLE_TAG).assertHasClickAction()
         composeRule.onAllNodesWithText("Table size").assertCountEquals(1)
         composeRule.onNode(hasSetTextAction() and hasText("Rows")).assertTextContains("4")
-        composeRule.onNode(hasSetTextAction() and hasText("Columns")).assertTextContains("3")
+        composeRule
+            .onNode(hasSetTextAction() and hasText("Columns"))
+            .assertTextContains("3")
+            .assertIsFocused()
         composeRule.onNodeWithText("Build table").assertExists()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -182,7 +187,7 @@ class SetupAdaptiveLayoutTest {
                         state = SetupUiState(),
                         rowsInput = rowsInput,
                         columnsInput = columnsInput,
-                        onIntent = {},
+                        onBuild = {},
                         windowAdaptiveInfo = window.toAdaptiveInfo(),
                     )
                 }
