@@ -1,4 +1,5 @@
 import dev.detekt.gradle.extensions.DetektExtension
+import org.gradle.api.artifacts.dsl.LockMode
 import org.gradle.testing.jacoco.tasks.JacocoReport
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 
@@ -19,6 +20,11 @@ plugins {
 subprojects {
     pluginManager.apply("org.jlleitschuh.gradle.ktlint")
     pluginManager.apply("dev.detekt")
+
+    dependencyLocking {
+        lockAllConfigurations()
+        lockMode.set(LockMode.STRICT)
+    }
 
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
         pluginManager.apply("jacoco")

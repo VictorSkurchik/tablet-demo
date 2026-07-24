@@ -4,16 +4,18 @@
 ![Android](https://img.shields.io/badge/Android-API%2028%2B-3DDC84?logo=android&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2026.06.01-4285F4?logo=jetpackcompose&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.1-02303A?logo=gradle&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-94%20enforced-brightgreen)
-![Coverage](https://img.shields.io/badge/Line%20coverage-95.2%25-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-98%20enforced-brightgreen)
+![Coverage](https://img.shields.io/badge/Line%20coverage-95.35%25-brightgreen)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 Tablet Demo is a tablet-only Android application for generating, exploring, selecting, and editing a table of random string values. The project is implemented with Jetpack Compose and split into UI, domain, and data layers.
 
-The tablet experience adapts at runtime to compact and expanded window sizes,
-split/multi-window resizing, tabletop posture, and separating foldable hinges
-while preserving form, table, and editor state. The manifest enforces a minimum
-600 dp smallest width without disabling resizing or multi-window support.
+The tablet experience adapts at runtime to compact, medium, expanded, large,
+and extra-large application windows, including resizes and separating foldable
+hinges, while preserving form, table, and editor state during in-process
+resizing and Activity recreation. Restoring a generated table after process
+death remains outside the current scope. The manifest enforces a minimum 600 dp
+smallest width without disabling resizing or multi-window support.
 
 ## Original requirements
 
@@ -93,11 +95,39 @@ The application follows a layered modular structure with dependencies pointing t
 - KtLint and Detekt for static analysis
 - LeakCanary in debug builds
 
+## Adaptive UI contract
+
+The UI follows the Android adaptive-app guidance within the supported
+tablet-only distribution scope:
+
+- `currentWindowAdaptiveInfo(supportLargeAndXLargeWidth = true)` is the single
+  source of current window size classes and display features. Layout decisions
+  do not use the physical device type or natural orientation.
+- Material 3 Adaptive V2 width and height classes select the pane policy. A
+  compact-height medium window stays single-pane; expanded and wider windows
+  can show the main and supporting panes together.
+- `SupportingPaneScaffold` provides canonical pane navigation and transitions.
+  Separating vertical, horizontal, off-centre, multiple, and mixed hinges are
+  excluded from pane content.
+- Standard Activity recreation handles density and other configuration
+  changes. `SavedStateHandle`, saveable navigation and scroll state,
+  `TextFieldState.Saver`, and saveable focus restoration preserve input and
+  editor continuity.
+- Within its `sw600dp` tablet distribution scope, the application follows the
+  window-size, posture, and continuity recommendations relevant to Android
+  adaptive Tier 2. This is not a formal claim of full Tier 2 compliance across
+  every screen type.
+
+The implementation follows the official guidance for
+[trifolds and landscape foldables](https://developer.android.com/develop/adaptive-apps/guides/foldables/trifolds-and-landscape-foldables),
+[window size classes](https://developer.android.com/develop/adaptive-apps/guides/use-window-size-classes),
+and [adaptive app quality](https://developer.android.com/docs/quality-guidelines/adaptive-app-quality/tier-2).
+
 ## Testing
 
-The project contains 98 automated scenarios: 54 JVM unit tests, 40 device UI
+The project contains 102 automated scenarios: 56 JVM unit tests, 42 device UI
 tests, and 4 separately executed macrobenchmark or baseline-profile scenarios.
-All 94 JVM and UI tests are enforced by the build and CI.
+All 98 JVM and UI tests are enforced by the build and CI.
 
 Implemented test types:
 
@@ -113,21 +143,27 @@ Implemented test types:
   validation, and the editor pane
 - Accessibility contracts for localized errors, loading/error announcements, table collection semantics, selection state, gesture alternatives, keyboard traversal, touch targets, contrast, and large font scale
 - Regression tests for keyboard-aware setup content and editor-pane height
-- Adaptive-layout tests for compact/expanded resizing, tabletop posture,
-  multiple and mixed separating hinges, and state preservation across
-  multi-window and split-window transitions
+- Adaptive-layout tests for compact, medium, expanded, large, and extra-large
+  policies; medium-width/compact-height behavior; synthetic display resizing;
+  injected tabletop and separating-hinge geometry; and state preservation
+  across resize and Activity recreation
 - End-to-end instrumentation journeys covering setup, table creation, selection,
   editing, localization, and access to the final cell of a 1,000 × 6 table
 - Macrobenchmark and baseline-profile scenarios for a maximum-size 1,000 × 6 table
 
 The suite focuses on invariants, state transitions, failure/cancellation paths,
-adaptive behavior, and real input modalities. Thin delegation and framework
-implementation details are intentionally not tested as independent contracts.
+adaptive behavior, and touch, mouse, and keyboard event paths. Thin delegation
+and framework implementation details are intentionally not tested as
+independent contracts.
+Espresso Device display-size changes and injected WindowManager features verify
+application logic deterministically; real fold/unfold, split-screen, freeform
+resize, and outer/inner-display density transitions remain device-lab checks
+rather than being overstated as emulator coverage.
 
 Run all JVM and connected-device tests and enforce the combined coverage floors:
 
 ```bash
-./gradlew coverageVerification
+./gradlew coverageVerification --dependency-verification strict
 ```
 
 ### Continuous integration
@@ -136,19 +172,24 @@ The [CI workflow](./.github/workflows/ci.yml) runs for pull requests and pushes
 targeting `develop` or `main`, and can also be started manually. It reports
 three independent checks:
 
-- `quality` runs KtLint, Detekt, all JVM unit tests, Android Lint, release R8
-  verification, and checks that the APK/AAB contain a Baseline Profile.
+- `quality` validates the Gradle Wrapper, enforces strict dependency
+  verification and lock files, runs KtLint, Detekt, all JVM unit tests, Android
+  Lint, release R8/profile checks, and validates the merged release manifest
+  security contract.
 - `android-ui-tests` runs the application and UI instrumentation suites on an
   Android 15 Pixel Tablet emulator, enforces the combined coverage floors, and
   executes the minified maximum-table macrobenchmark.
 - `compatibility-smoke` builds and opens a valid table on tablet emulators at
   the supported API boundary (API 28) and the current compile API (API 37).
 
-The `baseline-profile` workflow runs for pull requests, protected-branch pushes,
-manual dispatches, and a weekly schedule; it regenerates both profiles and
-fails on a stale checked-in result. The manually dispatched
-`physical-benchmark` workflow runs macrobenchmarks on a dedicated self-hosted
-tablet.
+The `baseline-profile` workflow runs for pull requests, pushes to `develop` or
+`main`, manual dispatches, and a weekly schedule; it regenerates both profiles
+and fails on a stale checked-in result. The manually dispatched
+`physical-benchmark` workflow accepts only `main`, requires the
+`physical-benchmark` environment, and runs macrobenchmarks on a dedicated
+self-hosted tablet. Repository administrators must configure environment
+protection and reviewers, restrict the runner group to this repository and
+workflow, and keep the runner isolated and clean between jobs.
 
 All three CI checks should be required by the `main` branch ruleset before
 merging.
@@ -159,18 +200,52 @@ The generated report is available at `build/reports/jacoco/coverageReport/html/i
 
 | Coverage metric | Result |
 | --- | ---: |
-| Instructions | 93.70% |
-| Lines | 95.18% |
-| Branches | 78.87% |
-| Methods | 90.75% |
+| Instructions | 93.86% |
+| Lines | 95.35% |
+| Branches | 78.96% |
+| Methods | 91.25% |
 | Classes | 98.72% |
 
 The build fails below 87% instructions, 73% branches, 88% lines, 84% methods,
 or 96% classes.
 
-<p align="center">
-  <img src="./docs/screenshots/test-coverage.png" alt="Combined JaCoCo coverage summary" width="100%">
-</p>
+## Security
+
+- The release application requests no network or dangerous runtime
+  permissions. Cleartext traffic is explicitly disabled.
+- Android Auto Backup and device-to-device transfer are denied for every
+  storage domain. The release gate checks both the merged manifest and the data
+  extraction rules.
+- `verifyReleaseArtifacts` allowlists release permissions and exported
+  components, rejects debuggable/test-only/shell-profileable output, and checks
+  R8 mapping, startup optimization, and packaged Baseline Profiles in the APK
+  and AAB.
+- All resolvable project configurations use strict dependency locking;
+  per-module and settings lock files are checked in together with SHA-256
+  dependency verification metadata. Repository content filters reduce
+  cross-repository substitution, and CI validates the Gradle Wrapper.
+- GitHub Actions are pinned to immutable commit SHAs with persisted checkout
+  credentials disabled. Dependabot monitors both Gradle and Actions
+  dependencies.
+- Unsigned release validation artifacts are uploaded separately on successful
+  CI runs with three-day retention. Release signing and store publishing remain
+  outside this repository.
+
+When intentionally changing dependencies, regenerate locks and checksums on a
+trusted machine, review the diff, and then rerun the strict build:
+
+```bash
+./gradlew test lint :app:verifyReleaseArtifacts \
+  :app:assembleDebugAndroidTest :ui:assembleDebugAndroidTest \
+  :benchmark:assembleBenchmark \
+  --write-locks --write-verification-metadata sha256 \
+  --no-configuration-cache
+
+./gradlew ktlintCheck detekt test lint :app:verifyReleaseArtifacts \
+  :app:assembleDebugAndroidTest :ui:assembleDebugAndroidTest \
+  :benchmark:assembleBenchmark \
+  --dependency-verification strict
+```
 
 ## Benchmarks
 
@@ -212,14 +287,16 @@ Regenerate the checked-in Baseline and Startup Profiles with:
 
 ```bash
 ./gradlew :app:generateReleaseBaselineProfile \
-  -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.enabledRules=BaselineProfile
+  -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.enabledRules=BaselineProfile \
+  --dependency-verification strict
 ```
 
 Run all macrobenchmarks on a connected tablet with:
 
 ```bash
 ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.enabledRules=Macrobenchmark
+  -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.enabledRules=Macrobenchmark \
+  --dependency-verification strict
 ```
 
 ## Out of Scope
@@ -249,25 +326,26 @@ Feature branches are never merged directly into `main`, and shared branches must
 Build the debug APK:
 
 ```bash
-./gradlew :app:assembleDebug
+./gradlew :app:assembleDebug --dependency-verification strict
 ```
 
 Build the unsigned release APK and the optimized benchmark APK:
 
 ```bash
-./gradlew :app:assembleRelease :app:assembleBenchmark
+./gradlew :app:assembleRelease :app:assembleBenchmark \
+  --dependency-verification strict
 ```
 
 Run static analysis:
 
 ```bash
-./gradlew ktlintCheck detekt lint
+./gradlew ktlintCheck detekt lint --dependency-verification strict
 ```
 
 Build and validate the release APK, AAB, R8 mapping, and packaged profile:
 
 ```bash
-./gradlew :app:verifyReleaseArtifacts
+./gradlew :app:verifyReleaseArtifacts --dependency-verification strict
 ```
 
 ## License

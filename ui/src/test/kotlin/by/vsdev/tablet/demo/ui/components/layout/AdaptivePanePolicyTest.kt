@@ -26,6 +26,18 @@ class AdaptivePanePolicyTest {
     }
 
     @Test
+    fun mediumWidthWithCompactHeightUsesSinglePane() {
+        val directive =
+            calculateAppPaneScaffoldDirective(
+                adaptiveInfo(width = 700, height = 400),
+                density = Density(1f),
+            )
+
+        assertEquals(1, directive.maxHorizontalPartitions)
+        assertEquals(1, directive.maxVerticalPartitions)
+    }
+
+    @Test
     fun expandedWindowUsesTwoHorizontalPanes() {
         val directive =
             calculateAppPaneScaffoldDirective(
@@ -34,6 +46,23 @@ class AdaptivePanePolicyTest {
             )
 
         assertEquals(2, directive.maxHorizontalPartitions)
+    }
+
+    @Test
+    fun largeAndExtraLargeWidthsAllowThreeHorizontalPanes() {
+        listOf(1_200, 1_600).forEach { width ->
+            val directive =
+                calculateAppPaneScaffoldDirective(
+                    adaptiveInfo(width = width, height = 700),
+                    density = Density(1f),
+                )
+
+            assertEquals(
+                "$width dp should use its V2 large-width partition policy",
+                3,
+                directive.maxHorizontalPartitions,
+            )
+        }
     }
 
     @Test

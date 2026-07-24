@@ -17,8 +17,24 @@ plugins {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        google()
-        mavenCentral()
+        google {
+            content {
+                includeGroupByRegex("androidx(\\..*)?")
+                includeGroupByRegex("com\\.android(\\..*)?")
+                includeGroupByRegex("com\\.google\\.android(\\..*)?")
+                includeGroupByRegex("com\\.google\\.firebase(\\..*)?")
+                includeGroupByRegex("com\\.google\\.testing\\.platform(\\..*)?")
+            }
+        }
+        mavenCentral {
+            content {
+                excludeGroupByRegex("androidx(\\..*)?")
+                excludeGroupByRegex("com\\.android(\\..*)?")
+                excludeGroupByRegex("com\\.google\\.android\\..*")
+                excludeGroupByRegex("com\\.google\\.firebase(\\..*)?")
+                excludeGroupByRegex("com\\.google\\.testing\\.platform(\\..*)?")
+            }
+        }
     }
 }
 
@@ -28,4 +44,3 @@ include(":ui")
 include(":domain")
 include(":data")
 include(":benchmark")
-
