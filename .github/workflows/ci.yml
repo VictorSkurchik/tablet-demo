@@ -102,7 +102,12 @@ jobs:
           profile: pixel_tablet
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: ./gradlew coverageVerification --stacktrace
+          script: |
+            ./gradlew coverageVerification --stacktrace
+            ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
+              "-Pandroid.testInstrumentationRunnerArguments.class=by.vsdev.tablet.demo.benchmark.TableMacrobenchmark#maximumTableStartupAndScroll" \
+              -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.enabledRules=Macrobenchmark \
+              --stacktrace
 
       - name: Upload Android test reports
         if: always()
@@ -112,5 +117,66 @@ jobs:
           path: |
             app/build/reports/androidTests/
             ui/build/reports/androidTests/
+            benchmark/build/outputs/
+            benchmark/build/reports/androidTests/
             build/reports/jacoco/coverageReport/
+          if-no-files-found: ignore
+
+  compatibility-smoke:
+    name: compatibility-smoke (API ${{ matrix.api }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        api:
+          - 28
+          - 37
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Install compile SDK
+        run: >-
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          --sdk_root="${ANDROID_HOME}"
+          "platforms;android-37.1"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run compatibility smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_tablet
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: >-
+            ./gradlew :app:connectedDebugAndroidTest
+            "-Pandroid.testInstrumentationRunnerArguments.class=by.vsdev.tablet.demo.AppJourneyTest#validDimensionsBuildAndOpenTable"
+            --stacktrace
+
+      - name: Upload compatibility smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-smoke-api-${{ matrix.api }}
+          path: app/build/reports/androidTests/connected/debug/
           if-no-files-found: ignore

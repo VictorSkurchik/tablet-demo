@@ -19,6 +19,8 @@ import androidx.compose.material3.adaptive.layout.rememberPaneExpansionState
 import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.testTag
@@ -37,13 +39,24 @@ import by.vsdev.tablet.demo.ui.components.layout.StandardPaneExpansionAnchors
 import by.vsdev.tablet.demo.ui.components.layout.horizontalSeparatingHingeBounds
 import by.vsdev.tablet.demo.ui.components.layout.supportsHorizontalPaneExpansion
 
+private data class SetupFormContent(
+    val state: SetupUiState,
+    val rowsInput: TextFieldState,
+    val columnsInput: TextFieldState,
+    val onBuild: () -> Unit,
+    val useCompactImeLayout: Boolean,
+    val showHeader: Boolean,
+    val rowsModifier: Modifier,
+    val columnsModifier: Modifier,
+)
+
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 internal fun SetupPaneLayout(
     state: SetupUiState,
     rowsInput: TextFieldState,
     columnsInput: TextFieldState,
-    onIntent: (SetupIntent) -> Unit,
+    onBuild: () -> Unit,
     useCompactImeLayout: Boolean,
     windowAdaptiveInfo: WindowAdaptiveInfo,
     navigator: ThreePaneScaffoldNavigator<Any>,
@@ -54,17 +67,20 @@ internal fun SetupPaneLayout(
         navigator.scaffoldValue[SupportingPaneScaffoldRole.Supporting] != PaneAdaptedValue.Hidden
     val horizontalHingeBounds = windowAdaptiveInfo.horizontalSeparatingHingeBounds
     val hasSeparateIntroPane = supportingPaneVisible || horizontalHingeBounds.isNotEmpty()
-    val formPaneContent: @Composable () -> Unit = {
-        SetupFormScaffold(
+    val movableFormContent = rememberMovableSetupFormContent()
+    val formContent =
+        SetupFormContent(
             state = state,
             rowsInput = rowsInput,
             columnsInput = columnsInput,
-            onIntent = onIntent,
+            onBuild = onBuild,
             useCompactImeLayout = useCompactImeLayout,
             showHeader = !hasSeparateIntroPane,
             rowsModifier = rowsModifier,
             columnsModifier = columnsModifier,
         )
+    val formPaneContent: @Composable () -> Unit = {
+        movableFormContent(formContent)
     }
     val introPaneContent: @Composable () -> Unit = { SetupSupportingPaneScaffold() }
     val mainPaneContent =
@@ -97,6 +113,23 @@ internal fun SetupPaneLayout(
         supportingPaneContent = supportingPaneContent,
     )
 }
+
+@Composable
+private fun rememberMovableSetupFormContent(): @Composable (SetupFormContent) -> Unit =
+    remember {
+        movableContentOf<SetupFormContent> { content ->
+            SetupFormScaffold(
+                state = content.state,
+                rowsInput = content.rowsInput,
+                columnsInput = content.columnsInput,
+                onBuild = content.onBuild,
+                useCompactImeLayout = content.useCompactImeLayout,
+                showHeader = content.showHeader,
+                rowsModifier = content.rowsModifier,
+                columnsModifier = content.columnsModifier,
+            )
+        }
+    }
 
 @Composable
 private fun SetupHorizontalHingePaneLayout(
@@ -179,7 +212,7 @@ private fun SetupFormScaffold(
     state: SetupUiState,
     rowsInput: TextFieldState,
     columnsInput: TextFieldState,
-    onIntent: (SetupIntent) -> Unit,
+    onBuild: () -> Unit,
     useCompactImeLayout: Boolean,
     showHeader: Boolean,
     rowsModifier: Modifier,
@@ -190,7 +223,7 @@ private fun SetupFormScaffold(
             state = state,
             rowsInput = rowsInput,
             columnsInput = columnsInput,
-            onIntent = onIntent,
+            onBuild = onBuild,
             useCompactImeLayout = useCompactImeLayout,
             modifier =
                 Modifier

@@ -48,6 +48,8 @@ import by.vsdev.tablet.demo.ui.presentation.table.TableUiState
 import by.vsdev.tablet.demo.ui.presentation.table.TableViewModel
 import by.vsdev.tablet.demo.ui.theme.AppSpacing
 import by.vsdev.tablet.demo.ui.theme.AppTheme
+import kotlinx.collections.immutable.PersistentList
+import kotlinx.collections.immutable.toPersistentList
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -276,7 +278,7 @@ private fun TableMainPane(
             is TableLoadState.Content ->
                 TableGrid(
                     columns = columns,
-                    cells = loadState.cells,
+                    content = loadState,
                     restoreFocusIndex = restoreFocusIndex,
                     onIntent = onIntent,
                 )
@@ -284,8 +286,8 @@ private fun TableMainPane(
     }
 }
 
-private fun tableScreenPreviewCells(count: Int): List<CellUiState> =
-    List(count) { CellUiState(text = "Cell $it", isSelected = it % 3 == 0) }
+private fun tableScreenPreviewCells(count: Int): PersistentList<CellUiState> =
+    List(count) { CellUiState(text = "Cell $it", isSelected = it % 3 == 0) }.toPersistentList()
 
 @Preview(name = "Table – populated", widthDp = 900, heightDp = 600)
 @Composable

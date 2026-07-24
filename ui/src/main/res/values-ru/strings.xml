@@ -27,5 +27,5 @@
     <string name="editor_character_count">Символов: %1$d/%2$d</string>
     <string name="editor_save">Сохранить</string>
     <string name="editor_cancel">Отмена</string>
-    <string name="editor_empty_hint">Выберите ячейку, чтобы изменить её значение.</string>
+    <string name="editor_empty_hint">Дважды коснитесь ячейки или щёлкните по ней, чтобы изменить её. Клавиатура: F2.</string>
 </resources>

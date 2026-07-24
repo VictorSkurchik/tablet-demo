@@ -14,6 +14,8 @@ kotlin {
 }
 
 dependencies {
+    api(libs.kotlinx.collections.immutable)
+
     implementation(platform(libs.kotlinx.coroutines.bom))
     implementation(libs.kotlinx.coroutines.core)
 

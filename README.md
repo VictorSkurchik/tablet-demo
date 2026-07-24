@@ -4,15 +4,16 @@
 ![Android](https://img.shields.io/badge/Android-API%2028%2B-3DDC84?logo=android&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2026.06.01-4285F4?logo=jetpackcompose&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.1-02303A?logo=gradle&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-96%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/Line%20coverage-95.3%25-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-94%20enforced-brightgreen)
+![Coverage](https://img.shields.io/badge/Line%20coverage-95.2%25-brightgreen)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 Tablet Demo is a tablet-only Android application for generating, exploring, selecting, and editing a table of random string values. The project is implemented with Jetpack Compose and split into UI, domain, and data layers.
 
 The tablet experience adapts at runtime to compact and expanded window sizes,
 split/multi-window resizing, tabletop posture, and separating foldable hinges
-while preserving form, table, and editor state.
+while preserving form, table, and editor state. The manifest enforces a minimum
+600 dp smallest width without disabling resizing or multi-window support.
 
 ## Original requirements
 
@@ -59,7 +60,7 @@ The application follows a layered modular structure with dependencies pointing t
 | Module | Responsibility | Direct project dependencies |
 | --- | --- | --- |
 | `:app` | Application entry point, navigation, Android resources, and dependency-injection assembly | `:ui`, `:domain`, `:data` |
-| `:ui` | Compose screens, adaptive tablet layout, reusable components, MVI state, and view models | `:domain` |
+| `:ui` | Compose screens, adaptive tablet layout, reusable components, unidirectional state, and view models | `:domain` |
 | `:domain` | Table models, limits, repository contract, validation, and generation use cases | None |
 | `:data` | Random string generation and the repository implementation hidden behind the domain contract | `:domain` |
 | `:benchmark` | Macrobenchmark scenario, maximum-table journey, and baseline profile generation | Targets `:app` |
@@ -79,9 +80,12 @@ The application follows a layered modular structure with dependencies pointing t
 - Material 3 and Material 3 Adaptive supporting-pane layouts
 - AndroidX WindowManager 1.5.1 for fold posture and separating-hinge information
 - Navigation Compose with type-safe serializable destinations
-- Kotlin coroutines, structured cancellation, and a single immutable `StateFlow` MVI state
+- Kotlin coroutines, structured cancellation, lifecycle-aware immutable
+  `StateFlow` screen state, and `TextFieldState` for high-frequency text input
+- Kotlin immutable persistent collections for stable Compose inputs and
+  logarithmic single-cell updates
 - Koin for dependency injection
-- JUnit 4, Turbine, Compose UI Test, Espresso 3.7.0, Espresso Device 1.1.0,
+- JUnit 4, Compose UI Test, Espresso 3.7.0, Espresso Device 1.1.0,
   WindowManager Testing, and UI Automator
 - JaCoCo for combined JVM and device-test coverage
 - AndroidX Macrobenchmark and Baseline Profiles
@@ -91,20 +95,22 @@ The application follows a layered modular structure with dependencies pointing t
 
 ## Testing
 
-The project contains 100 automated scenarios: 59 JVM unit tests, 37 device UI
+The project contains 98 automated scenarios: 54 JVM unit tests, 40 device UI
 tests, and 4 separately executed macrobenchmark or baseline-profile scenarios.
-All 96 JVM and UI tests are enforced by the build.
+All 94 JVM and UI tests are enforced by the build and CI.
 
 Implemented test types:
 
-- Domain unit tests for table models, validation rules, and generation use cases
-- Data unit tests for random strings and repository behavior
+- Domain unit tests for table invariants and validation rules
+- Data unit tests for random-string contracts, repository behavior, immutable
+  output, and verified background-dispatcher use
 - View-model unit tests for setup validation, table loading, failure/retry, in-flight
   cancellation, selection, and editing
 - Unit tests for scroll-thumb geometry
 - Dependency-injection graph verification
-- Compose instrumentation tests for number fields, mouse/touch and Enter/F2 cell
-  interaction, compact setup validation, and the editor pane
+- Compose instrumentation tests for number fields, mouse/touch single and
+  double clicks, Space/NumPad Enter/F2 cell interaction, compact setup
+  validation, and the editor pane
 - Accessibility contracts for localized errors, loading/error announcements, table collection semantics, selection state, gesture alternatives, keyboard traversal, touch targets, contrast, and large font scale
 - Regression tests for keyboard-aware setup content and editor-pane height
 - Adaptive-layout tests for compact/expanded resizing, tabletop posture,
@@ -114,6 +120,10 @@ Implemented test types:
   editing, localization, and access to the final cell of a 1,000 × 6 table
 - Macrobenchmark and baseline-profile scenarios for a maximum-size 1,000 × 6 table
 
+The suite focuses on invariants, state transitions, failure/cancellation paths,
+adaptive behavior, and real input modalities. Thin delegation and framework
+implementation details are intentionally not tested as independent contracts.
+
 Run all JVM and connected-device tests and enforce the combined coverage floors:
 
 ```bash
@@ -122,18 +132,26 @@ Run all JVM and connected-device tests and enforce the combined coverage floors:
 
 ### Continuous integration
 
-The [CI workflow](./.github/workflows/ci.yml) runs for pull requests and pushes targeting `develop` or `main`, and can also be started manually. It reports two independent checks:
+The [CI workflow](./.github/workflows/ci.yml) runs for pull requests and pushes
+targeting `develop` or `main`, and can also be started manually. It reports
+three independent checks:
 
 - `quality` runs KtLint, Detekt, all JVM unit tests, Android Lint, release R8
   verification, and checks that the APK/AAB contain a Baseline Profile.
 - `android-ui-tests` runs the application and UI instrumentation suites on an
-  Android 15 Pixel Tablet emulator and enforces the combined coverage floors.
+  Android 15 Pixel Tablet emulator, enforces the combined coverage floors, and
+  executes the minified maximum-table macrobenchmark.
+- `compatibility-smoke` builds and opens a valid table on tablet emulators at
+  the supported API boundary (API 28) and the current compile API (API 37).
 
-The scheduled `baseline-profile` workflow regenerates profiles and fails on a
-stale checked-in result. The manually dispatched `physical-benchmark` workflow
-runs macrobenchmarks on a dedicated self-hosted tablet.
+The `baseline-profile` workflow runs for pull requests, protected-branch pushes,
+manual dispatches, and a weekly schedule; it regenerates both profiles and
+fails on a stale checked-in result. The manually dispatched
+`physical-benchmark` workflow runs macrobenchmarks on a dedicated self-hosted
+tablet.
 
-Both checks should be required by the `main` branch ruleset before merging.
+All three CI checks should be required by the `main` branch ruleset before
+merging.
 
 ### Coverage
 
@@ -141,11 +159,11 @@ The generated report is available at `build/reports/jacoco/coverageReport/html/i
 
 | Coverage metric | Result |
 | --- | ---: |
-| Instructions | 93.46% |
-| Lines | 95.26% |
-| Branches | 78.50% |
-| Methods | 90.40% |
-| Classes | 98.73% |
+| Instructions | 93.70% |
+| Lines | 95.18% |
+| Branches | 78.87% |
+| Methods | 90.75% |
+| Classes | 98.72% |
 
 The build fails below 87% instructions, 73% branches, 88% lines, 84% methods,
 or 96% classes.
@@ -165,7 +183,7 @@ The development build includes JaCoCo and LeakCanary and does not use R8 optimiz
 
 | Cold startup | Average | Median |
 | --- | ---: | ---: |
-| Activity Manager, 5 runs | 715 ms | 718 ms |
+| Activity Manager, 5 runs | 819 ms | 765 ms |
 
 ### Release build
 
@@ -175,20 +193,20 @@ The release-like build uses R8, resource shrinking, `CompilationMode.Partial`, t
 
 | Startup metric, 10 runs | Minimum | Median | Maximum |
 | --- | ---: | ---: | ---: |
-| Time to initial display | 105.9 ms | 115.9 ms | 247.9 ms |
+| Time to initial display | 104.4 ms | 119.5 ms | 196.3 ms |
 
 #### Maximum table startup and scrolling
 
 | Startup metric, 5 runs | Minimum | Median | Maximum |
 | --- | ---: | ---: | ---: |
-| Time to initial display | 114.1 ms | 145.6 ms | 182.3 ms |
-| Time to full display | 1,502.6 ms | 1,578.0 ms | 1,652.0 ms |
-| Measured frame count | 105 | 110 | 132 |
+| Time to initial display | 107.1 ms | 121.9 ms | 161.2 ms |
+| Time to full display | 1,400.5 ms | 1,415.7 ms | 2,187.9 ms |
+| Measured frame count | 95 | 98 | 122 |
 
 | Frame metric | P50 | P90 | P95 | P99 |
 | --- | ---: | ---: | ---: | ---: |
-| CPU frame duration | 5.2 ms | 10.4 ms | 20.7 ms | 39.9 ms |
-| Frame overrun | −9.8 ms | −1.4 ms | 12.1 ms | 31.0 ms |
+| CPU frame duration | 4.0 ms | 7.2 ms | 13.6 ms | 39.5 ms |
+| Frame overrun | −11.1 ms | −7.5 ms | −1.1 ms | 26.0 ms |
 
 Regenerate the checked-in Baseline and Startup Profiles with:
 

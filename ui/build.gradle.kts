@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.savedstate)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.kotlinx.collections.immutable)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)
@@ -85,6 +86,5 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
     testImplementation(libs.junit)
-    testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
 }

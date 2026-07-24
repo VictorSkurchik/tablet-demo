@@ -2,6 +2,8 @@ package by.vsdev.tablet.demo.ui.presentation.table
 
 import androidx.compose.runtime.Immutable
 import by.vsdev.tablet.demo.domain.model.TableConfig
+import kotlinx.collections.immutable.PersistentList
+import kotlinx.collections.immutable.persistentListOf
 
 internal const val MAX_CELL_TEXT_LENGTH = 100
 
@@ -15,8 +17,9 @@ internal data class CellUiState(
 internal sealed interface TableLoadState {
     data object Loading : TableLoadState
 
-    data class Content(
-        val cells: List<CellUiState>,
+    @Immutable
+    class Content(
+        val cells: PersistentList<CellUiState>,
     ) : TableLoadState
 
     data object Error : TableLoadState
@@ -28,14 +31,8 @@ internal data class TableUiState(
     val loadState: TableLoadState = TableLoadState.Loading,
     val editingIndex: Int? = null,
 ) {
-    val cells: List<CellUiState>
-        get() = (loadState as? TableLoadState.Content)?.cells.orEmpty()
-
-    val isLoading: Boolean
-        get() = loadState == TableLoadState.Loading
-
-    val hasLoadError: Boolean
-        get() = loadState == TableLoadState.Error
+    val cells: PersistentList<CellUiState>
+        get() = (loadState as? TableLoadState.Content)?.cells ?: persistentListOf()
 }
 
 internal sealed interface TableIntent {
