@@ -21,7 +21,7 @@ windowManager = "1.5.1"
 koin = "4.2.2"
 
 coroutines = "1.11.0"
-kotlinxImmutable = "0.4.0"
+kotlinxImmutable = "0.5.1"
 benchmark = "1.4.1"
 baselineProfile = "1.5.0-alpha07"
 uiautomator = "2.4.0"
