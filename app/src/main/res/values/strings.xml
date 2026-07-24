@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Tablet Demo</string>
+    <string name="developer_credit" translatable="false">Developed by Victor Skurchik</string>
 </resources>

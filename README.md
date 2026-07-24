@@ -307,6 +307,8 @@ The following improvements are intentionally outside the current requirements:
 - Persistent storage, import/export, and sharing of table data
 - Undo/redo, copy/paste, bulk selection, sorting, filtering, and search
 - Phone-first and desktop-first layouts
+- Firebase services and integrations
+- Third-party product analytics (for example, Amplitude)
 - Release signing and store publishing
 
 ## Git workflow
