@@ -300,7 +300,15 @@ private fun RestoreCellFocus(
         onScrollStarted()
         val target = index ?: return@LaunchedEffect
         if (target !in 0 until cellCount) return@LaunchedEffect
-        gridState.scrollToItem(target)
+        val targetIsVisible =
+            gridState.layoutInfo.visibleItemsInfo.any { visibleItem ->
+                visibleItem.index == target
+            }
+        if (targetIsVisible) {
+            focusRequester.requestFocus()
+        } else {
+            gridState.scrollToItem(target)
+        }
     }
     LaunchedEffect(index, placedIndex) {
         if (index == null || placedIndex != index) return@LaunchedEffect

@@ -12,10 +12,13 @@ import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.WindowAdaptiveInfo
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
+import androidx.compose.material3.adaptive.layout.PaneExpansionStateKey
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
+import androidx.compose.material3.adaptive.layout.rememberPaneExpansionState
 import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.testTag
@@ -24,10 +27,15 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import by.vsdev.tablet.demo.ui.R
+import by.vsdev.tablet.demo.ui.components.layout.AppPaneDragHandle
+import by.vsdev.tablet.demo.ui.components.layout.BALANCED_PANE_ANCHOR_INDEX
+import by.vsdev.tablet.demo.ui.components.layout.BALANCED_PANE_PROPORTION
 import by.vsdev.tablet.demo.ui.components.layout.EQUAL_VERTICAL_PANE_HEIGHT_FRACTION
 import by.vsdev.tablet.demo.ui.components.layout.HorizontalHingePaneScaffold
 import by.vsdev.tablet.demo.ui.components.layout.ResponsiveFormContainer
+import by.vsdev.tablet.demo.ui.components.layout.StandardPaneExpansionAnchors
 import by.vsdev.tablet.demo.ui.components.layout.horizontalSeparatingHingeBounds
+import by.vsdev.tablet.demo.ui.components.layout.supportsHorizontalPaneExpansion
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
@@ -84,7 +92,7 @@ internal fun SetupPaneLayout(
 
     SetupMaterialPaneLayout(
         navigator = navigator,
-        useEqualHeightTabletopPanes = windowAdaptiveInfo.windowPosture.isTabletop,
+        useEqualHeightVerticalPanes = navigator.scaffoldDirective.maxVerticalPartitions > 1,
         mainPaneContent = mainPaneContent,
         supportingPaneContent = supportingPaneContent,
     )
@@ -111,10 +119,22 @@ private fun SetupHorizontalHingePaneLayout(
 @Composable
 private fun SetupMaterialPaneLayout(
     navigator: ThreePaneScaffoldNavigator<Any>,
-    useEqualHeightTabletopPanes: Boolean,
+    useEqualHeightVerticalPanes: Boolean,
     mainPaneContent: @Composable () -> Unit,
     supportingPaneContent: @Composable () -> Unit,
 ) {
+    val paneExpansionState =
+        rememberPaneExpansionState(
+            key = PaneExpansionStateKey.Default,
+            anchors = StandardPaneExpansionAnchors,
+            initialAnchoredIndex = BALANCED_PANE_ANCHOR_INDEX,
+        )
+    SideEffect {
+        if (paneExpansionState.isUnspecified()) {
+            paneExpansionState.setFirstPaneProportion(BALANCED_PANE_PROPORTION)
+        }
+    }
+    val supportsHorizontalPaneExpansion = navigator.supportsHorizontalPaneExpansion
     SupportingPaneScaffold(
         directive = navigator.scaffoldDirective,
         value = navigator.scaffoldValue,
@@ -127,7 +147,7 @@ private fun SetupMaterialPaneLayout(
             AnimatedPane(
                 modifier =
                     (
-                        if (useEqualHeightTabletopPanes) {
+                        if (useEqualHeightVerticalPanes) {
                             Modifier.preferredHeight(EQUAL_VERTICAL_PANE_HEIGHT_FRACTION)
                         } else {
                             Modifier
@@ -137,6 +157,20 @@ private fun SetupMaterialPaneLayout(
                 supportingPaneContent()
             }
         },
+        paneExpansionState =
+            if (supportsHorizontalPaneExpansion) {
+                paneExpansionState
+            } else {
+                null
+            },
+        paneExpansionDragHandle =
+            if (supportsHorizontalPaneExpansion) {
+                { state ->
+                    AppPaneDragHandle(state, Modifier.testTag(SETUP_PANE_DRAG_HANDLE_TAG))
+                }
+            } else {
+                null
+            },
     )
 }
 
