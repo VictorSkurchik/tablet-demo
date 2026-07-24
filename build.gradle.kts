@@ -58,11 +58,30 @@ project(":app").tasks.configureEach {
 }
 
 val coverageExecutionData =
-    fileTree(rootDir) {
-        include("**/build/jacoco/test.exec")
-        include("**/build/outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
-        include("**/build/outputs/code_coverage/debugAndroidTest/connected/**/*.ec")
-    }
+    files(
+        project(":app").layout.buildDirectory.file(
+            "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+        ),
+        project(":ui").layout.buildDirectory.file(
+            "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+        ),
+        project(":data").layout.buildDirectory.file("jacoco/test.exec"),
+        project(":domain").layout.buildDirectory.file("jacoco/test.exec"),
+        project(":app").fileTree(
+            project(":app").layout.buildDirectory.dir(
+                "outputs/code_coverage/debugAndroidTest/connected",
+            ),
+        ) {
+            include("**/*.ec")
+        },
+        project(":ui").fileTree(
+            project(":ui").layout.buildDirectory.dir(
+                "outputs/code_coverage/debugAndroidTest/connected",
+            ),
+        ) {
+            include("**/*.ec")
+        },
+    )
 val coverageSourceDirectories =
     files(
         subprojects.flatMap {

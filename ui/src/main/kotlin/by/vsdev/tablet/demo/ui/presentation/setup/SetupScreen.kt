@@ -7,14 +7,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.WindowAdaptiveInfo
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
+import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +37,7 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import by.vsdev.tablet.demo.domain.model.TableConfig
@@ -41,6 +45,7 @@ import by.vsdev.tablet.demo.domain.model.TableLimits
 import by.vsdev.tablet.demo.domain.usecase.FieldError
 import by.vsdev.tablet.demo.ui.R
 import by.vsdev.tablet.demo.ui.components.layout.ResponsiveFormContainer
+import by.vsdev.tablet.demo.ui.components.layout.calculateAppPaneScaffoldDirective
 import by.vsdev.tablet.demo.ui.components.molecules.NumberField
 import by.vsdev.tablet.demo.ui.mvi.CollectEffect
 import by.vsdev.tablet.demo.ui.theme.AppSpacing
@@ -48,16 +53,21 @@ import by.vsdev.tablet.demo.ui.theme.AppTheme
 import org.koin.androidx.compose.koinViewModel
 
 private val ComfortableSetupHeight = 320.dp
+internal const val SETUP_FORM_PANE_TAG = "setupFormPane"
+internal const val SETUP_SUPPORTING_PANE_TAG = "setupSupportingPane"
 
 private enum class SetupField {
     Rows,
     Columns,
 }
 
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun SetupRoute(
     onNavigateToTable: (TableConfig) -> Unit,
     modifier: Modifier = Modifier,
+    windowAdaptiveInfo: WindowAdaptiveInfo =
+        currentWindowAdaptiveInfo(supportLargeAndXLargeWidth = true),
 ) {
     val viewModel = koinViewModel<SetupViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -68,10 +78,11 @@ fun SetupRoute(
         columnsInput = viewModel.columnsInput,
         onIntent = viewModel::onIntent,
         modifier = modifier,
+        windowAdaptiveInfo = windowAdaptiveInfo,
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 internal fun SetupScreen(
     state: SetupUiState,
@@ -79,6 +90,8 @@ internal fun SetupScreen(
     columnsInput: TextFieldState,
     onIntent: (SetupIntent) -> Unit,
     modifier: Modifier = Modifier,
+    windowAdaptiveInfo: WindowAdaptiveInfo =
+        currentWindowAdaptiveInfo(supportLargeAndXLargeWidth = true),
 ) {
     val density = LocalDensity.current
     val imeBottom = WindowInsets.ime.getBottom(density)
@@ -86,52 +99,73 @@ internal fun SetupScreen(
     val rowsRequester = remember { BringIntoViewRequester() }
     val columnsRequester = remember { BringIntoViewRequester() }
     var focusedField by remember { mutableStateOf<SetupField?>(null) }
-
-    LaunchedEffect(isOnScreenKeyboardVisible, focusedField) {
-        if (isOnScreenKeyboardVisible) {
-            val requester =
-                when (focusedField) {
-                    SetupField.Rows -> rowsRequester
-                    SetupField.Columns -> columnsRequester
-                    null -> return@LaunchedEffect
-                }
-            withFrameNanos { }
-            requester.bringIntoView()
-        }
-    }
+    val paneNavigator = rememberSetupPaneNavigator(windowAdaptiveInfo, density)
 
     val screenTitle = stringResource(R.string.setup_title)
-    Scaffold(
+    BoxWithConstraints(
         modifier =
-            modifier.semantics {
-                paneTitle = screenTitle
-                isTraversalGroup = true
-            },
-    ) { innerPadding ->
-        BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            val imeHeight = with(density) { imeBottom.toDp() }
-            val useCompactImeLayout =
-                isOnScreenKeyboardVisible &&
-                    imeBottom > 0 &&
-                    maxHeight - imeHeight < ComfortableSetupHeight
+            modifier
+                .fillMaxSize()
+                .semantics {
+                    paneTitle = screenTitle
+                    isTraversalGroup = true
+                },
+    ) {
+        val imeHeight = with(density) { imeBottom.toDp() }
+        val useCompactImeLayout =
+            isOnScreenKeyboardVisible &&
+                imeBottom > 0 &&
+                maxHeight - imeHeight < ComfortableSetupHeight
 
-            SetupForm(
-                state = state,
-                rowsInput = rowsInput,
-                columnsInput = columnsInput,
-                onIntent = onIntent,
-                useCompactImeLayout = useCompactImeLayout,
-                rowsModifier =
-                    Modifier
-                        .bringIntoViewRequester(rowsRequester)
-                        .trackSetupFieldFocus(SetupField.Rows, focusedField) { focusedField = it },
-                columnsModifier =
-                    Modifier
-                        .bringIntoViewRequester(columnsRequester)
-                        .trackSetupFieldFocus(SetupField.Columns, focusedField) { focusedField = it },
-            )
+        LaunchedEffect(
+            isOnScreenKeyboardVisible,
+            focusedField,
+            maxHeight,
+            imeBottom,
+        ) {
+            if (isOnScreenKeyboardVisible) {
+                val requester =
+                    when (focusedField) {
+                        SetupField.Rows -> rowsRequester
+                        SetupField.Columns -> columnsRequester
+                        null -> return@LaunchedEffect
+                    }
+                withFrameNanos { }
+                requester.bringIntoView()
+            }
         }
+
+        SetupPaneLayout(
+            state = state,
+            rowsInput = rowsInput,
+            columnsInput = columnsInput,
+            onIntent = onIntent,
+            useCompactImeLayout = useCompactImeLayout,
+            windowAdaptiveInfo = windowAdaptiveInfo,
+            navigator = paneNavigator,
+            rowsModifier =
+                Modifier
+                    .bringIntoViewRequester(rowsRequester)
+                    .trackSetupFieldFocus(SetupField.Rows, focusedField) { focusedField = it },
+            columnsModifier =
+                Modifier
+                    .bringIntoViewRequester(columnsRequester)
+                    .trackSetupFieldFocus(SetupField.Columns, focusedField) { focusedField = it },
+        )
     }
+}
+
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+@Composable
+private fun rememberSetupPaneNavigator(
+    windowAdaptiveInfo: WindowAdaptiveInfo,
+    density: Density,
+): ThreePaneScaffoldNavigator<Any> {
+    val paneDirective =
+        remember(windowAdaptiveInfo, density) {
+            calculateAppPaneScaffoldDirective(windowAdaptiveInfo, density)
+        }
+    return rememberSupportingPaneScaffoldNavigator(scaffoldDirective = paneDirective)
 }
 
 private fun Modifier.trackSetupFieldFocus(
@@ -153,16 +187,19 @@ internal fun SetupForm(
     columnsInput: TextFieldState,
     onIntent: (SetupIntent) -> Unit,
     useCompactImeLayout: Boolean,
+    modifier: Modifier = Modifier,
+    showHeader: Boolean = true,
     rowsModifier: Modifier = Modifier,
     columnsModifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
 
     ResponsiveFormContainer(
+        modifier = modifier,
         contentPadding = if (useCompactImeLayout) AppSpacing.small else AppSpacing.large,
         verticalSpacing = if (useCompactImeLayout) AppSpacing.small else AppSpacing.medium,
     ) {
-        if (!useCompactImeLayout) {
+        if (showHeader && !useCompactImeLayout) {
             Text(
                 text = stringResource(R.string.setup_title),
                 style = MaterialTheme.typography.headlineSmall,

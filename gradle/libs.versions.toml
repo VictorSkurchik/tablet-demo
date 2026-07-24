@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.0"
+agp = "9.3.1"
 compileSdk = "37"
 compileSdkMinor = "1"
 minSdk = "28"
@@ -16,6 +16,7 @@ activityCompose = "1.13.0"
 navigationCompose = "2.9.8"
 lifecycle = "2.11.0"
 material3Adaptive = "1.2.0"
+windowManager = "1.5.1"
 
 koin = "4.2.2"
 
@@ -23,6 +24,7 @@ coroutines = "1.11.0"
 benchmark = "1.4.1"
 baselineProfile = "1.5.0-alpha07"
 uiautomator = "2.4.0"
+espressoDevice = "1.1.0"
 
 leakcanary = "2.14"
 turbine = "1.2.1"
@@ -48,6 +50,8 @@ androidx-material-icons-core = { group = "androidx.compose.material", name = "ma
 androidx-material3-adaptive = { group = "androidx.compose.material3.adaptive", name = "adaptive", version.ref = "material3Adaptive" }
 androidx-material3-adaptive-layout = { group = "androidx.compose.material3.adaptive", name = "adaptive-layout", version.ref = "material3Adaptive" }
 androidx-material3-adaptive-navigation = { group = "androidx.compose.material3.adaptive", name = "adaptive-navigation", version.ref = "material3Adaptive" }
+androidx-window = { group = "androidx.window", name = "window", version.ref = "windowManager" }
+androidx-window-testing = { group = "androidx.window", name = "window-testing", version.ref = "windowManager" }
 
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
@@ -71,6 +75,7 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmark" }
 androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "benchmark" }
 androidx-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
+androidx-espresso-device = { group = "androidx.test.espresso", name = "espresso-device", version.ref = "espressoDevice" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

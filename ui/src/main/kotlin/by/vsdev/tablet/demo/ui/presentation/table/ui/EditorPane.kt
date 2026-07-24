@@ -4,16 +4,11 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldState
@@ -26,8 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -47,16 +40,15 @@ import by.vsdev.tablet.demo.ui.theme.AppTheme
 
 internal const val EDITOR_FIELD_TAG = "editorField"
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun EditorPane(
     index: Int?,
     currentText: String?,
-    restoredDraft: String? = null,
-    onDraftChanged: (String) -> Unit = {},
-    onConfirm: (Int, String) -> Unit,
+    onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    showTitle: Boolean = true,
+    draftState: TextFieldState? = null,
 ) {
     if (index == null || currentText == null) {
         EmptyEditorPane(modifier)
@@ -64,29 +56,15 @@ internal fun EditorPane(
     }
 
     val draft =
-        rememberSaveable(index, saver = TextFieldState.Saver) {
-            TextFieldState((restoredDraft ?: currentText).take(MAX_CELL_TEXT_LENGTH))
+        draftState ?: rememberSaveable(index, saver = TextFieldState.Saver) {
+            TextFieldState(currentText.take(MAX_CELL_TEXT_LENGTH))
         }
     val focusRequester = remember(index) { FocusRequester() }
-    val fieldRequester = remember(index) { BringIntoViewRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val isOnScreenKeyboardVisible = WindowInsets.isImeVisible
 
     LaunchedEffect(index) {
         focusRequester.requestFocus()
-        withFrameNanos { }
         keyboardController?.show()
-    }
-
-    LaunchedEffect(index, draft) {
-        snapshotFlow { draft.text.toString() }.collect(onDraftChanged)
-    }
-
-    LaunchedEffect(index, isOnScreenKeyboardVisible) {
-        if (isOnScreenKeyboardVisible) {
-            withFrameNanos { }
-            fieldRequester.bringIntoView()
-        }
     }
 
     Column(
@@ -98,16 +76,16 @@ internal fun EditorPane(
                 .padding(AppSpacing.large),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
     ) {
-        Text(
-            stringResource(R.string.editor_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.semantics { heading() },
-        )
+        if (showTitle) {
+            Text(
+                stringResource(R.string.editor_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.semantics { heading() },
+            )
+        }
         EditorControls(
-            index = index,
             draft = draft,
             focusRequester = focusRequester,
-            fieldRequester = fieldRequester,
             onConfirm = onConfirm,
             onDismiss = onDismiss,
         )
@@ -116,11 +94,9 @@ internal fun EditorPane(
 
 @Composable
 private fun EditorControls(
-    index: Int,
     draft: TextFieldState,
     focusRequester: FocusRequester,
-    fieldRequester: BringIntoViewRequester,
-    onConfirm: (Int, String) -> Unit,
+    onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     Column(
@@ -141,11 +117,10 @@ private fun EditorControls(
                 )
             },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            onKeyboardAction = { onConfirm(index, draft.text.toString()) },
+            onKeyboardAction = { onConfirm(draft.text.toString()) },
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .bringIntoViewRequester(fieldRequester)
                     .testTag(EDITOR_FIELD_TAG)
                     .focusRequester(focusRequester),
         )
@@ -154,7 +129,7 @@ private fun EditorControls(
             verticalArrangement = Arrangement.spacedBy(AppSpacing.small),
         ) {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.editor_cancel)) }
-            Button(onClick = { onConfirm(index, draft.text.toString()) }) {
+            Button(onClick = { onConfirm(draft.text.toString()) }) {
                 Text(stringResource(R.string.editor_save))
             }
         }
@@ -183,7 +158,7 @@ private fun EditorPanePreview() {
         EditorPane(
             index = 3,
             currentText = "Edited cell value",
-            onConfirm = { _, _ -> },
+            onConfirm = {},
             onDismiss = {},
         )
     }
@@ -192,5 +167,5 @@ private fun EditorPanePreview() {
 @Preview(name = "Editor – empty", widthDp = 280, heightDp = 240)
 @Composable
 private fun EditorPaneEmptyPreview() {
-    AppTheme { EditorPane(index = null, currentText = null, onConfirm = { _, _ -> }, onDismiss = {}) }
+    AppTheme { EditorPane(index = null, currentText = null, onConfirm = {}, onDismiss = {}) }
 }

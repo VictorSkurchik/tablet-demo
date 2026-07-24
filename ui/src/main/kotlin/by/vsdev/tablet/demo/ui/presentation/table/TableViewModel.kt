@@ -42,7 +42,7 @@ internal class TableViewModel(
                     copy(isSelected = !isSelected)
                 }
             is TableIntent.CellDoubleClicked -> openEditor(intent.index)
-            is TableIntent.EditConfirmed -> confirmEdit(intent.index, intent.text)
+            is TableIntent.EditConfirmed -> confirmEdit(intent.text)
             is TableIntent.EditorDraftChanged -> {
                 if (state.value.editingIndex != null) {
                     setState { copy(editorDraft = intent.text.take(MAX_CELL_TEXT_LENGTH)) }
@@ -141,10 +141,8 @@ internal class TableViewModel(
         recoveryCoordinator.markDirty()
     }
 
-    private fun confirmEdit(
-        index: Int,
-        text: String,
-    ) {
+    private fun confirmEdit(text: String) {
+        val index = state.value.editingIndex ?: return
         if (updateCell(index) { copy(text = text.take(MAX_CELL_TEXT_LENGTH)) }) {
             dismissEditor()
         }

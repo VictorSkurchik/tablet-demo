@@ -2,17 +2,11 @@ package by.vsdev.tablet.demo.ui.presentation.table.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.ReportDrawnWhen
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,11 +16,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.compose.material3.adaptive.layout.AnimatedPane
-import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
-import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
+import androidx.compose.material3.adaptive.WindowAdaptiveInfo
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
-import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
+import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,16 +32,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.isTraversalGroup
-import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.ui.R
+import by.vsdev.tablet.demo.ui.components.layout.calculateAppPaneScaffoldDirective
 import by.vsdev.tablet.demo.ui.components.molecules.ErrorContent
 import by.vsdev.tablet.demo.ui.components.molecules.LoadingContent
 import by.vsdev.tablet.demo.ui.presentation.table.CellUiState
@@ -61,21 +53,15 @@ import by.vsdev.tablet.demo.ui.theme.AppTheme
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
-private const val EDITOR_RESIZE_ANIMATION_DURATION_MILLIS = 350
-private const val EDITOR_EXPANDED_HEIGHT_FRACTION = 0.5f
-
-internal fun calculateEditorPaneTargetHeight(
-    shouldExpand: Boolean,
-    maxHeight: Dp,
-    defaultHeight: Dp,
-): Dp = if (shouldExpand) maxHeight * EDITOR_EXPANDED_HEIGHT_FRACTION else defaultHeight
-
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun TableRoute(
     config: TableConfig,
     recoverySessionId: String,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
+    windowAdaptiveInfo: WindowAdaptiveInfo =
+        currentWindowAdaptiveInfo(supportLargeAndXLargeWidth = true),
 ) {
     val viewModel =
         koinViewModel<TableViewModel> {
@@ -91,20 +77,29 @@ fun TableRoute(
         onIntent = viewModel::onIntent,
         onNavigateUp = { viewModel.closeSession(onNavigateUp) },
         modifier = modifier,
+        windowAdaptiveInfo = windowAdaptiveInfo,
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 internal fun TableScreen(
     state: TableUiState,
     onIntent: (TableIntent) -> Unit,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
+    windowAdaptiveInfo: WindowAdaptiveInfo =
+        currentWindowAdaptiveInfo(supportLargeAndXLargeWidth = true),
 ) {
-    val navigator = rememberSupportingPaneScaffoldNavigator<SupportingPaneScaffoldRole>()
-    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
-    val isOnScreenKeyboardVisible = WindowInsets.isImeVisible
+    val density = LocalDensity.current
+    val paneDirective =
+        remember(windowAdaptiveInfo, density) {
+            calculateAppPaneScaffoldDirective(windowAdaptiveInfo, density)
+        }
+    val navigator =
+        rememberSupportingPaneScaffoldNavigator<Int>(
+            scaffoldDirective = paneDirective,
+        )
     val screenTitle = stringResource(R.string.table_title, state.config.rows, state.config.columns)
     var lastEditingIndex by remember { mutableStateOf<Int?>(null) }
     var restoreFocusIndex by remember { mutableStateOf<Int?>(null) }
@@ -117,12 +112,18 @@ internal fun TableScreen(
             restoreFocusIndex = lastEditingIndex
             lastEditingIndex = null
         }
-        val supportingHidden =
-            navigator.scaffoldValue[SupportingPaneScaffoldRole.Supporting] == PaneAdaptedValue.Hidden
-        if (state.editingIndex != null && supportingHidden) {
-            navigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
-        } else if (state.editingIndex == null && navigator.canNavigateBack()) {
-            navigator.navigateBack()
+        val supportingIsCurrentDestination =
+            navigator.currentDestination?.pane == SupportingPaneScaffoldRole.Supporting
+        if (state.editingIndex != null && !supportingIsCurrentDestination) {
+            navigator.navigateTo(
+                pane = SupportingPaneScaffoldRole.Supporting,
+                contentKey = state.editingIndex,
+            )
+        } else if (
+            state.editingIndex == null &&
+            supportingIsCurrentDestination
+        ) {
+            navigator.navigateBack(BackNavigationBehavior.PopUntilCurrentDestinationChange)
         }
     }
 
@@ -133,115 +134,17 @@ internal fun TableScreen(
             onNavigateUp()
         }
     }
-    Scaffold(
-        modifier =
-            modifier.semantics {
-                paneTitle = screenTitle
-                isTraversalGroup = true
-            },
-        topBar = {
-            TableTopBar(
-                rows = state.config.rows,
-                columns = state.config.columns,
-                isEditing = state.editingIndex != null,
-                onNavigateUp = onNavigateUp,
-                onDismissEditor = { onIntent(TableIntent.EditDismissed) },
-            )
-        },
-    ) { innerPadding ->
-        TablePaneLayout(
-            state = state,
-            navigator = navigator,
-            imeBottom = imeBottom,
-            isOnScreenKeyboardVisible = isOnScreenKeyboardVisible,
-            restoreFocusIndex = restoreFocusIndex,
-            onIntent = onIntent,
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
-        )
-    }
-}
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
-@Composable
-private fun TablePaneLayout(
-    state: TableUiState,
-    navigator: ThreePaneScaffoldNavigator<SupportingPaneScaffoldRole>,
-    imeBottom: Int,
-    isOnScreenKeyboardVisible: Boolean,
-    restoreFocusIndex: Int?,
-    onIntent: (TableIntent) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    BoxWithConstraints(modifier = modifier) {
-        val editorPaneHeight =
-            animatedEditorPaneHeight(
-                shouldExpand =
-                    state.editingIndex != null &&
-                        isOnScreenKeyboardVisible &&
-                        imeBottom > 0,
-                maxHeight = maxHeight,
-                defaultHeight = navigator.scaffoldDirective.defaultPanePreferredHeight,
-            )
-
-        SupportingPaneScaffold(
-            modifier = Modifier.fillMaxSize(),
-            directive = navigator.scaffoldDirective,
-            value = navigator.scaffoldValue,
-            mainPane = {
-                AnimatedPane {
-                    TableMainPane(
-                        loadState = state.loadState,
-                        columns = state.config.columns,
-                        restoreFocusIndex = restoreFocusIndex,
-                        onIntent = onIntent,
-                    )
-                }
-            },
-            supportingPane = {
-                val editorTitle = stringResource(R.string.editor_title)
-                AnimatedPane(
-                    modifier =
-                        Modifier
-                            .preferredHeight(editorPaneHeight)
-                            .semantics {
-                                if (state.editingIndex != null) {
-                                    paneTitle = editorTitle
-                                    isTraversalGroup = true
-                                }
-                            },
-                ) {
-                    val index = state.editingIndex
-                    EditorPane(
-                        index = index,
-                        currentText = index?.let { state.cells.getOrNull(it)?.text },
-                        restoredDraft = state.editorDraft,
-                        onDraftChanged = { onIntent(TableIntent.EditorDraftChanged(it)) },
-                        onConfirm = { i, text -> onIntent(TableIntent.EditConfirmed(i, text)) },
-                        onDismiss = { onIntent(TableIntent.EditDismissed) },
-                    )
-                }
-            },
-        )
-    }
-}
-
-@Composable
-private fun animatedEditorPaneHeight(
-    shouldExpand: Boolean,
-    maxHeight: Dp,
-    defaultHeight: Dp,
-): Dp {
-    val height by
-        animateDpAsState(
-            targetValue = calculateEditorPaneTargetHeight(shouldExpand, maxHeight, defaultHeight),
-            animationSpec =
-                tween(
-                    durationMillis = EDITOR_RESIZE_ANIMATION_DURATION_MILLIS,
-                    easing = FastOutSlowInEasing,
-                ),
-            label = "editorPaneHeight",
-        )
-    return height
+    TablePaneLayout(
+        state = state,
+        navigator = navigator,
+        mainPaneTitle = screenTitle,
+        restoreFocusIndex = restoreFocusIndex,
+        windowAdaptiveInfo = windowAdaptiveInfo,
+        onIntent = onIntent,
+        onNavigateUp = onNavigateUp,
+        modifier = modifier.fillMaxSize(),
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -249,29 +152,116 @@ private fun animatedEditorPaneHeight(
 private fun TableTopBar(
     rows: Int,
     columns: Int,
-    isEditing: Boolean,
     onNavigateUp: () -> Unit,
-    onDismissEditor: () -> Unit,
 ) {
     TopAppBar(
         title = {
             Text(
                 stringResource(R.string.table_title, rows, columns),
                 modifier = Modifier.semantics { heading() },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         },
         navigationIcon = {
-            IconButton(onClick = if (isEditing) onDismissEditor else onNavigateUp) {
+            IconButton(onClick = onNavigateUp) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription =
-                        stringResource(
-                            if (isEditing) R.string.table_close_editor else R.string.table_back,
-                        ),
+                    contentDescription = stringResource(R.string.table_back),
                 )
             }
         },
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditorTopBar(
+    canDismiss: Boolean,
+    onDismiss: () -> Unit,
+) {
+    TopAppBar(
+        title = {
+            Text(
+                text = stringResource(R.string.editor_title),
+                modifier = Modifier.semantics { heading() },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        navigationIcon = {
+            if (canDismiss) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.table_close_editor),
+                    )
+                }
+            }
+        },
+    )
+}
+
+@Composable
+internal fun TableMainScaffold(
+    state: TableUiState,
+    restoreFocusIndex: Int?,
+    onIntent: (TableIntent) -> Unit,
+    onNavigateUp: () -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TableTopBar(
+                rows = state.config.rows,
+                columns = state.config.columns,
+                onNavigateUp = onNavigateUp,
+            )
+        },
+    ) { innerPadding ->
+        TableMainPane(
+            loadState = state.loadState,
+            columns = state.config.columns,
+            restoreFocusIndex = restoreFocusIndex,
+            onIntent = onIntent,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding),
+        )
+    }
+}
+
+@Composable
+internal fun EditorScaffold(
+    index: Int?,
+    currentText: String?,
+    draftState: TextFieldState,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            EditorTopBar(
+                canDismiss = index != null,
+                onDismiss = onDismiss,
+            )
+        },
+    ) { innerPadding ->
+        EditorPane(
+            index = index,
+            currentText = currentText,
+            draftState = draftState,
+            onConfirm = onConfirm,
+            onDismiss = onDismiss,
+            showTitle = false,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding),
+        )
+    }
 }
 
 @Composable
@@ -280,8 +270,9 @@ private fun TableMainPane(
     columns: Int,
     restoreFocusIndex: Int?,
     onIntent: (TableIntent) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier) {
         when (loadState) {
             TableLoadState.Loading ->
                 LoadingContent(

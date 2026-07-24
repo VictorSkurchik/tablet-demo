@@ -50,7 +50,6 @@ internal sealed interface TableIntent {
     ) : TableIntent
 
     data class EditConfirmed(
-        val index: Int,
         val text: String,
     ) : TableIntent
 
