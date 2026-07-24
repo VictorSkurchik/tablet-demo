@@ -89,11 +89,13 @@ class TableAdaptiveLayoutTest {
         composeRule.onNodeWithTag(EDITOR_FIELD_TAG).assertTextContains(DRAFT)
         composeRule.onNodeWithTag(TABLE_PANE_DRAG_HANDLE_TAG).assertHasClickAction()
 
+        composeRule.runOnIdle { windowWidth = MEDIUM_WIDTH }
+
+        assertEditorOnlyWithDraft()
+
         composeRule.runOnIdle { windowWidth = COMPACT_WIDTH }
 
-        composeRule.onNodeWithTag(TABLE_MAIN_PANE_TAG).assertDoesNotExist()
-        composeRule.onNodeWithTag(TABLE_EDITOR_PANE_TAG).assertExists()
-        composeRule.onNodeWithTag(EDITOR_FIELD_TAG).assertTextContains(DRAFT)
+        assertEditorOnlyWithDraft()
 
         composeRule.runOnIdle { windowWidth = EXPANDED_WIDTH }
 
@@ -107,6 +109,12 @@ class TableAdaptiveLayoutTest {
 
         composeRule.onNodeWithTag(TABLE_MAIN_PANE_TAG).assertExists()
         composeRule.onNodeWithTag(TABLE_EDITOR_PANE_TAG).assertDoesNotExist()
+    }
+
+    private fun assertEditorOnlyWithDraft() {
+        composeRule.onNodeWithTag(TABLE_MAIN_PANE_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(TABLE_EDITOR_PANE_TAG).assertExists()
+        composeRule.onNodeWithTag(EDITOR_FIELD_TAG).assertTextContains(DRAFT)
     }
 
     private fun offCenterHorizontalHingePosture(): Posture {
@@ -273,6 +281,7 @@ class TableAdaptiveLayoutTest {
 
     private companion object {
         const val COMPACT_WIDTH = 400
+        const val MEDIUM_WIDTH = 700
         const val EXPANDED_WIDTH = 900
         const val WINDOW_HEIGHT = 700
         const val TABLETOP_WIDTH = 900

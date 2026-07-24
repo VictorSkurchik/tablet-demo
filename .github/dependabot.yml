@@ -1,0 +1,26 @@
+version: 2
+
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Europe/Minsk
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:30"
+      timezone: Europe/Minsk
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"

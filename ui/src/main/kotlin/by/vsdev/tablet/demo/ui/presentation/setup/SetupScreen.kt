@@ -24,6 +24,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -104,11 +105,13 @@ internal fun SetupScreen(
     val columnsRequester = remember { BringIntoViewRequester() }
     val rowsFocusRequester = remember { FocusRequester() }
     val columnsFocusRequester = remember { FocusRequester() }
-    var focusedField by remember { mutableStateOf<SetupField?>(null) }
+    var lastFocusedField by rememberSaveable { mutableStateOf<SetupField?>(null) }
+    var restoreFieldFocus by rememberSaveable { mutableStateOf(false) }
+    val fieldToRestore = lastFocusedField.takeIf { restoreFieldFocus }
     val paneNavigator = rememberSetupPaneNavigator(windowAdaptiveInfo, density)
     RestoreSetupFieldFocus(
         windowAdaptiveInfo,
-        focusedField,
+        fieldToRestore,
         rowsFocusRequester,
         columnsFocusRequester,
     )
@@ -127,7 +130,7 @@ internal fun SetupScreen(
 
         BringFocusedSetupFieldIntoView(
             isOnScreenKeyboardVisible,
-            focusedField,
+            fieldToRestore,
             rowsRequester,
             columnsRequester,
         )
@@ -141,15 +144,16 @@ internal fun SetupScreen(
             windowAdaptiveInfo = windowAdaptiveInfo,
             navigator = paneNavigator,
             rowsModifier =
-                Modifier
-                    .bringIntoViewRequester(rowsRequester)
-                    .focusRequester(rowsFocusRequester)
-                    .trackSetupFieldFocus(SetupField.Rows, focusedField) { focusedField = it },
+                setupFieldModifier(SetupField.Rows, rowsRequester, rowsFocusRequester) {
+                    lastFocusedField = it
+                    restoreFieldFocus = true
+                },
             columnsModifier =
-                Modifier
-                    .bringIntoViewRequester(columnsRequester)
-                    .focusRequester(columnsFocusRequester)
-                    .trackSetupFieldFocus(SetupField.Columns, focusedField) { focusedField = it },
+                setupFieldModifier(SetupField.Columns, columnsRequester, columnsFocusRequester) {
+                    lastFocusedField = it
+                    restoreFieldFocus = true
+                },
+            onFocusRestorationDisabled = { restoreFieldFocus = false },
         )
     }
 }
@@ -224,17 +228,20 @@ private fun rememberSetupPaneNavigator(
     return rememberSupportingPaneScaffoldNavigator(scaffoldDirective = paneDirective)
 }
 
-private fun Modifier.trackSetupFieldFocus(
+private fun setupFieldModifier(
     field: SetupField,
-    focusedField: SetupField?,
-    onFocusedFieldChanged: (SetupField?) -> Unit,
+    bringIntoViewRequester: BringIntoViewRequester,
+    focusRequester: FocusRequester,
+    onFocusedFieldChanged: (SetupField) -> Unit,
 ): Modifier =
-    onFocusChanged {
-        when {
-            it.isFocused -> onFocusedFieldChanged(field)
-            focusedField == field -> onFocusedFieldChanged(null)
+    Modifier
+        .bringIntoViewRequester(bringIntoViewRequester)
+        .focusRequester(focusRequester)
+        .onFocusChanged {
+            if (it.isFocused) {
+                onFocusedFieldChanged(field)
+            }
         }
-    }
 
 @Composable
 internal fun SetupForm(
@@ -242,6 +249,7 @@ internal fun SetupForm(
     rowsInput: TextFieldState,
     columnsInput: TextFieldState,
     onBuild: () -> Unit,
+    onFocusRestorationDisabled: () -> Unit = {},
     useCompactImeLayout: Boolean,
     modifier: Modifier = Modifier,
     showHeader: Boolean = true,
@@ -291,19 +299,38 @@ internal fun SetupForm(
                 if (state.canBuild) {
                     onBuild()
                 } else {
+                    onFocusRestorationDisabled()
                     focusManager.clearFocus()
                 }
             },
             modifier = columnsModifier,
         )
 
-        Button(
-            onClick = onBuild,
+        SetupBuildButton(
             enabled = state.canBuild,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.setup_build))
-        }
+            onBuild = onBuild,
+            onFocusRestorationDisabled = onFocusRestorationDisabled,
+        )
+    }
+}
+
+@Composable
+private fun SetupBuildButton(
+    enabled: Boolean,
+    onBuild: () -> Unit,
+    onFocusRestorationDisabled: () -> Unit,
+) {
+    Button(
+        onClick = onBuild,
+        enabled = enabled,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .onFocusChanged {
+                    if (it.isFocused) onFocusRestorationDisabled()
+                },
+    ) {
+        Text(stringResource(R.string.setup_build))
     }
 }
 
