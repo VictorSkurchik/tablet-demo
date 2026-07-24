@@ -44,20 +44,33 @@ internal fun SetupPaneLayout(
 ) {
     val supportingPaneVisible =
         navigator.scaffoldValue[SupportingPaneScaffoldRole.Supporting] != PaneAdaptedValue.Hidden
-    val mainPaneContent: @Composable () -> Unit = {
+    val horizontalHingeBounds = windowAdaptiveInfo.horizontalSeparatingHingeBounds
+    val hasSeparateIntroPane = supportingPaneVisible || horizontalHingeBounds.isNotEmpty()
+    val formPaneContent: @Composable () -> Unit = {
         SetupFormScaffold(
             state = state,
             rowsInput = rowsInput,
             columnsInput = columnsInput,
             onIntent = onIntent,
             useCompactImeLayout = useCompactImeLayout,
-            showHeader = !supportingPaneVisible,
+            showHeader = !hasSeparateIntroPane,
             rowsModifier = rowsModifier,
             columnsModifier = columnsModifier,
         )
     }
-    val supportingPaneContent: @Composable () -> Unit = { SetupSupportingPaneScaffold() }
-    val horizontalHingeBounds = windowAdaptiveInfo.horizontalSeparatingHingeBounds
+    val introPaneContent: @Composable () -> Unit = { SetupSupportingPaneScaffold() }
+    val mainPaneContent =
+        if (hasSeparateIntroPane) {
+            introPaneContent
+        } else {
+            formPaneContent
+        }
+    val supportingPaneContent =
+        if (hasSeparateIntroPane) {
+            formPaneContent
+        } else {
+            introPaneContent
+        }
 
     if (horizontalHingeBounds.isNotEmpty()) {
         SetupHorizontalHingePaneLayout(
@@ -89,14 +102,8 @@ private fun SetupHorizontalHingePaneLayout(
         excludedBounds = excludedBounds,
         mainPane = mainPaneContent,
         supportingPane = supportingPaneContent,
-        mainPaneModifier =
-            Modifier
-                .recalculateWindowInsets()
-                .testTag(SETUP_FORM_PANE_TAG),
-        supportingPaneModifier =
-            Modifier
-                .recalculateWindowInsets()
-                .testTag(SETUP_SUPPORTING_PANE_TAG),
+        mainPaneModifier = Modifier.recalculateWindowInsets(),
+        supportingPaneModifier = Modifier.recalculateWindowInsets(),
     )
 }
 
@@ -112,12 +119,7 @@ private fun SetupMaterialPaneLayout(
         directive = navigator.scaffoldDirective,
         value = navigator.scaffoldValue,
         mainPane = {
-            AnimatedPane(
-                modifier =
-                    Modifier
-                        .recalculateWindowInsets()
-                        .testTag(SETUP_FORM_PANE_TAG),
-            ) {
+            AnimatedPane(modifier = Modifier.recalculateWindowInsets()) {
                 mainPaneContent()
             }
         },
@@ -130,8 +132,7 @@ private fun SetupMaterialPaneLayout(
                         } else {
                             Modifier
                         }
-                    ).recalculateWindowInsets()
-                        .testTag(SETUP_SUPPORTING_PANE_TAG),
+                    ).recalculateWindowInsets(),
             ) {
                 supportingPaneContent()
             }
@@ -150,7 +151,7 @@ private fun SetupFormScaffold(
     rowsModifier: Modifier,
     columnsModifier: Modifier,
 ) {
-    Scaffold { innerPadding ->
+    Scaffold(modifier = Modifier.testTag(SETUP_FORM_PANE_TAG)) { innerPadding ->
         SetupForm(
             state = state,
             rowsInput = rowsInput,
@@ -171,7 +172,7 @@ private fun SetupFormScaffold(
 
 @Composable
 private fun SetupSupportingPaneScaffold() {
-    Scaffold { innerPadding ->
+    Scaffold(modifier = Modifier.testTag(SETUP_SUPPORTING_PANE_TAG)) { innerPadding ->
         SetupSupportingPane(
             modifier =
                 Modifier
