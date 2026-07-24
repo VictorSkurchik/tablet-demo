@@ -14,12 +14,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":domain"))
-    implementation(project(":recovery"))
-
-    implementation(platform(libs.kotlinx.coroutines.bom))
-    implementation(libs.kotlinx.coroutines.core)
+    api(project(":domain"))
 
     testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
 }

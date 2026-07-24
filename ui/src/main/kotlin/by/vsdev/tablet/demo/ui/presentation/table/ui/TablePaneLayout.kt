@@ -9,9 +9,11 @@ import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
 import androidx.compose.material3.adaptive.layout.rememberPaneExpansionState
 import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldNavigator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.testTag
@@ -55,8 +57,14 @@ internal fun TablePaneLayout(
     val editorDraft =
         rememberSaveable(editingIndex, saver = TextFieldState.Saver) {
             val currentText = editingIndex?.let { state.cells.getOrNull(it)?.text }.orEmpty()
-            TextFieldState(currentText.take(MAX_CELL_TEXT_LENGTH))
+            TextFieldState((state.editorDraft ?: currentText).take(MAX_CELL_TEXT_LENGTH))
         }
+    LaunchedEffect(editingIndex, editorDraft) {
+        if (editingIndex != null) {
+            snapshotFlow { editorDraft.text.toString() }
+                .collect { onIntent(TableIntent.EditorDraftChanged(it)) }
+        }
+    }
     val horizontalHingeBounds = windowAdaptiveInfo.horizontalSeparatingHingeBounds
     if (horizontalHingeBounds.isNotEmpty()) {
         TableHorizontalHingePaneLayout(

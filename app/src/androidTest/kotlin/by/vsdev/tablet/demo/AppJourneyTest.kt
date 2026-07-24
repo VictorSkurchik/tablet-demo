@@ -17,10 +17,16 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import by.vsdev.tablet.demo.recovery.TableRecoveryRepository
+import by.vsdev.tablet.demo.recovery.model.TableRecoverySnapshot
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.koin.core.context.GlobalContext
 
 @RunWith(AndroidJUnit4::class)
 class AppJourneyTest {
@@ -69,6 +75,66 @@ class AppJourneyTest {
     }
 
     @Test
+    fun newViewModelRestoresTableSelectionAndActiveEditorDraftFromDisk() {
+        recoveryDirectory().deleteRecursively()
+        buildTable(rows = 2, columns = 2)
+        waitForRecoverySnapshot()
+        editCell(row = 1, column = 1, value = EDITED_VALUE)
+        selectCell(row = 1, column = 2)
+        composeRule
+            .onNodeWithContentDescription(cellPrefix(row = 1, column = 1), substring = true)
+            .performTouchInput { doubleClick() }
+        composeRule.onNode(hasSetTextAction() and hasText(EDITED_VALUE)).performTextReplacement(DRAFT_VALUE)
+        waitForRecoverySnapshot { snapshot ->
+            snapshot.editorDraft == DRAFT_VALUE &&
+                snapshot.cells[0].text == EDITED_VALUE &&
+                snapshot.cells[1].isSelected
+        }
+
+        composeRule.activityRule.scenario.onActivity { it.viewModelStore.clear() }
+        composeRule.activityRule.scenario.recreate()
+
+        composeRule.onNodeWithText("Table · 2 × 2").assertExists()
+        composeRule.onNode(hasSetTextAction() and hasText(DRAFT_VALUE)).assertExists()
+        composeRule
+            .onNodeWithContentDescription(cellPrefix(row = 1, column = 2), substring = true)
+            .assertIsSelected()
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForCell(row = 1, column = 1, value = EDITED_VALUE)
+    }
+
+    @Test
+    fun activityRecreationRetainsGridScrollPosition() {
+        buildLargeTable()
+        scrollToCell(
+            index = LAST_CELL_INDEX,
+            row = LARGE_TABLE_ROWS,
+            column = LARGE_TABLE_COLUMNS,
+        )
+
+        composeRule.activityRule.scenario.recreate()
+
+        waitForCell(row = LARGE_TABLE_ROWS, column = LARGE_TABLE_COLUMNS)
+    }
+
+    @Test
+    fun tableBackNavigationReturnsToSetup() {
+        recoveryDirectory().deleteRecursively()
+        buildTable(rows = 2, columns = 2)
+        waitForRecoverySnapshot()
+
+        pressBack()
+
+        composeRule.onNodeWithText("Build table").assertExists()
+        composeRule.waitUntil(timeoutMillis = TIMEOUT_MILLIS) {
+            recoveryDirectory()
+                .listFiles()
+                .orEmpty()
+                .none { it.extension == "snapshot" }
+        }
+    }
+
+    @Test
     fun maximumDimensionsBuildAndReachLastCell() {
         buildTable(rows = MAXIMUM_TABLE_ROWS, columns = MAXIMUM_TABLE_COLUMNS)
 
@@ -94,6 +160,19 @@ class AppJourneyTest {
                 .isNotEmpty()
         }
         cell.assertIsSelected()
+    }
+
+    private fun editCell(
+        row: Int,
+        column: Int,
+        value: String,
+    ) {
+        composeRule
+            .onNodeWithContentDescription(cellPrefix(row, column), substring = true)
+            .performTouchInput { doubleClick() }
+        composeRule.onNode(hasSetTextAction() and hasText("Value")).performTextReplacement(value)
+        composeRule.onNodeWithText("Save").performClick()
+        waitForCell(row, column, value)
     }
 
     private fun buildLargeTable() {
@@ -154,6 +233,26 @@ class AppJourneyTest {
         column: Int,
     ): String = "Row $row, column $column:"
 
+    private fun recoveryDirectory() =
+        InstrumentationRegistry
+            .getInstrumentation()
+            .targetContext.noBackupFilesDir
+            .resolve("table-recovery")
+
+    private fun waitForRecoverySnapshot(predicate: (TableRecoverySnapshot) -> Boolean = { true }) {
+        composeRule.waitUntil(timeoutMillis = TIMEOUT_MILLIS) {
+            val file =
+                recoveryDirectory()
+                    .listFiles()
+                    .orEmpty()
+                    .firstOrNull { it.extension == "snapshot" && it.length() > 0L }
+                    ?: return@waitUntil false
+            val repository = GlobalContext.get().get<TableRecoveryRepository>()
+            val snapshot = runBlocking { repository.load(file.nameWithoutExtension) }
+            snapshot != null && predicate(snapshot)
+        }
+    }
+
     private companion object {
         const val TIMEOUT_MILLIS = 5_000L
         const val LARGE_TABLE_ROWS = 50
@@ -162,5 +261,6 @@ class AppJourneyTest {
         const val MAXIMUM_TABLE_COLUMNS = 6
         const val LAST_CELL_INDEX = LARGE_TABLE_ROWS * LARGE_TABLE_COLUMNS - 1
         const val EDITED_VALUE = "Edited value"
+        const val DRAFT_VALUE = "Unfinished draft"
     }
 }
