@@ -117,7 +117,7 @@ jobs:
           arch: x86_64
           profile: pixel_tablet
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -grpc 8554
           script: |
             ./gradlew coverageVerification --stacktrace
             ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
@@ -147,7 +147,7 @@ jobs:
       matrix:
         api:
           - 28
-          - 37
+          - 36
 
     steps:
       - name: Check out repository
