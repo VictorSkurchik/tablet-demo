@@ -215,6 +215,48 @@ class TableAdaptiveLayoutTest {
         )
     }
 
+    @Test
+    fun portraitTabletWithActiveEditorSharesHeightEvenly() {
+        val windowSize = DpSize(width = PORTRAIT_WIDTH.dp, height = PORTRAIT_HEIGHT.dp)
+        composeRule.setContent {
+            DeviceConfigurationOverride(
+                DeviceConfigurationOverride.WindowSize(windowSize),
+            ) {
+                AppTheme {
+                    TableScreen(
+                        state =
+                            TableUiState(
+                                config = TableConfig(rows = 2, columns = 2),
+                                loadState =
+                                    TableLoadState.Content(
+                                        List(4) { CellUiState("Value $it") },
+                                    ),
+                                editingIndex = 0,
+                            ),
+                        onIntent = {},
+                        onNavigateUp = {},
+                        windowAdaptiveInfo = windowSize.toAdaptiveInfo(),
+                    )
+                }
+            }
+        }
+
+        val tableBounds =
+            composeRule.onNodeWithTag(TABLE_MAIN_PANE_TAG).fetchSemanticsNode().boundsInRoot
+        val editorBounds =
+            composeRule.onNodeWithTag(TABLE_EDITOR_PANE_TAG).fetchSemanticsNode().boundsInRoot
+
+        composeRule.onNodeWithTag(EDITOR_FIELD_TAG).assertExists()
+        assertTrue(
+            "Portrait panes should be stacked",
+            tableBounds.bottom <= editorBounds.top,
+        )
+        assertTrue(
+            "An active portrait editor should receive half the available height",
+            abs(tableBounds.height - editorBounds.height) <= 1f,
+        )
+    }
+
     private fun DpSize.toAdaptiveInfo(posture: Posture = Posture()): WindowAdaptiveInfo =
         WindowAdaptiveInfo(
             windowSizeClass =
@@ -231,6 +273,8 @@ class TableAdaptiveLayoutTest {
         const val WINDOW_HEIGHT = 700
         const val TABLETOP_WIDTH = 900
         const val TABLETOP_HEIGHT = 1_200
+        const val PORTRAIT_WIDTH = 800
+        const val PORTRAIT_HEIGHT = 1_280
         const val DRAFT = "Draft survives resize"
     }
 }

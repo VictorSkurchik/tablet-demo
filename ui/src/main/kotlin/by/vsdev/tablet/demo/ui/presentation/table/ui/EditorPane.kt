@@ -3,12 +3,19 @@ package by.vsdev.tablet.demo.ui.presentation.table.ui
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldState
@@ -21,10 +28,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -40,6 +49,7 @@ import by.vsdev.tablet.demo.ui.theme.AppTheme
 
 internal const val EDITOR_FIELD_TAG = "editorField"
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun EditorPane(
     index: Int?,
@@ -60,35 +70,55 @@ internal fun EditorPane(
             TextFieldState(currentText.take(MAX_CELL_TEXT_LENGTH))
         }
     val focusRequester = remember(index) { FocusRequester() }
+    val fieldRequester = remember(index) { BringIntoViewRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current
+    val imeBottom = WindowInsets.ime.getBottom(density)
+    val isOnScreenKeyboardVisible = WindowInsets.isImeVisible
 
     LaunchedEffect(index) {
         focusRequester.requestFocus()
         keyboardController?.show()
     }
 
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(AppSpacing.large),
-        verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
-    ) {
-        if (showTitle) {
-            Text(
-                stringResource(R.string.editor_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.semantics { heading() },
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        LaunchedEffect(
+            index,
+            isOnScreenKeyboardVisible,
+            imeBottom,
+            maxWidth,
+            maxHeight,
+        ) {
+            if (isOnScreenKeyboardVisible && imeBottom > 0) {
+                withFrameNanos { }
+                fieldRequester.bringIntoView()
+            }
+        }
+
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(AppSpacing.large),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.medium),
+        ) {
+            if (showTitle) {
+                Text(
+                    stringResource(R.string.editor_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.semantics { heading() },
+                )
+            }
+            EditorControls(
+                draft = draft,
+                focusRequester = focusRequester,
+                fieldRequester = fieldRequester,
+                onConfirm = onConfirm,
+                onDismiss = onDismiss,
             )
         }
-        EditorControls(
-            draft = draft,
-            focusRequester = focusRequester,
-            onConfirm = onConfirm,
-            onDismiss = onDismiss,
-        )
     }
 }
 
@@ -96,6 +126,7 @@ internal fun EditorPane(
 private fun EditorControls(
     draft: TextFieldState,
     focusRequester: FocusRequester,
+    fieldRequester: BringIntoViewRequester,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -121,6 +152,7 @@ private fun EditorControls(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .bringIntoViewRequester(fieldRequester)
                     .testTag(EDITOR_FIELD_TAG)
                     .focusRequester(focusRequester),
         )

@@ -55,6 +55,7 @@ import org.koin.androidx.compose.koinViewModel
 private val ComfortableSetupHeight = 320.dp
 internal const val SETUP_FORM_PANE_TAG = "setupFormPane"
 internal const val SETUP_SUPPORTING_PANE_TAG = "setupSupportingPane"
+internal const val SETUP_PANE_DRAG_HANDLE_TAG = "setupPaneDragHandle"
 
 private enum class SetupField {
     Rows,
