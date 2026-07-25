@@ -13,6 +13,7 @@ import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.WindowAdaptiveInfo
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -22,12 +23,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import by.vsdev.tablet.demo.R
+import by.vsdev.tablet.demo.recovery.RecoverySessionIdFactory
+import by.vsdev.tablet.demo.recovery.restoreOrCreate
 import by.vsdev.tablet.demo.ui.presentation.setup.SetupRoute
 import by.vsdev.tablet.demo.ui.presentation.table.ui.TableRoute
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 internal fun AppRoot(
+    recoverySessionIdFactory: RecoverySessionIdFactory,
     windowAdaptiveInfo: WindowAdaptiveInfo =
         currentWindowAdaptiveInfo(supportLargeAndXLargeWidth = true),
 ) {
@@ -39,7 +43,9 @@ internal fun AppRoot(
                 composable<SetupDestination> {
                     SetupRoute(
                         onNavigateToTable = { config ->
-                            navController.navigate(TableDestination(config)) {
+                            navController.navigate(
+                                TableDestination(config, recoverySessionIdFactory.newSessionId()),
+                            ) {
                                 launchSingleTop = true
                             }
                         },
@@ -48,8 +54,15 @@ internal fun AppRoot(
                 }
                 composable<TableDestination> { entry ->
                     val destination = entry.toRoute<TableDestination>()
+                    val recoverySessionId =
+                        rememberSaveable(destination.recoverySessionId) {
+                            recoverySessionIdFactory.restoreOrCreate(
+                                destination.recoverySessionId,
+                            )
+                        }
                     TableRoute(
                         config = destination.toConfig(),
+                        recoverySessionId = recoverySessionId,
                         onNavigateUp = navController::navigateUp,
                         windowAdaptiveInfo = windowAdaptiveInfo,
                     )

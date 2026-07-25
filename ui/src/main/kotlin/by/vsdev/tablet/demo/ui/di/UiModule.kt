@@ -10,5 +10,7 @@ import org.koin.dsl.module
 val uiModule: Module =
     module {
         viewModel { SetupViewModel(get(), get()) }
-        viewModel { (config: TableConfig) -> TableViewModel(config, get(), get()) }
+        viewModel { (config: TableConfig, sessionId: String) ->
+            TableViewModel(config, sessionId, get(), get(), get())
+        }
     }

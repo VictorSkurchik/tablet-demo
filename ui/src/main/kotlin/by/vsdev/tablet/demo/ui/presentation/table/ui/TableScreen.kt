@@ -35,6 +35,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.ui.R
@@ -57,18 +59,25 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun TableRoute(
     config: TableConfig,
+    recoverySessionId: String,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
     windowAdaptiveInfo: WindowAdaptiveInfo =
         currentWindowAdaptiveInfo(supportLargeAndXLargeWidth = true),
 ) {
-    val viewModel = koinViewModel<TableViewModel> { parametersOf(config) }
+    val viewModel =
+        koinViewModel<TableViewModel> {
+            parametersOf(config, recoverySessionId)
+        }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        viewModel.onIntent(TableIntent.AppBackgrounded)
+    }
     ReportDrawnWhen { state.loadState != TableLoadState.Loading }
     TableScreen(
         state = state,
         onIntent = viewModel::onIntent,
-        onNavigateUp = onNavigateUp,
+        onNavigateUp = { viewModel.closeSession(onNavigateUp) },
         modifier = modifier,
         windowAdaptiveInfo = windowAdaptiveInfo,
     )
@@ -120,7 +129,13 @@ internal fun TableScreen(
         }
     }
 
-    BackHandler(enabled = state.editingIndex != null) { onIntent(TableIntent.EditDismissed) }
+    BackHandler {
+        if (state.editingIndex != null) {
+            onIntent(TableIntent.EditDismissed)
+        } else {
+            onNavigateUp()
+        }
+    }
 
     TablePaneLayout(
         state = state,
@@ -315,6 +330,7 @@ private fun TableScreenEditorPreview() {
                     config = TableConfig(rows = 4, columns = 3),
                     loadState = TableLoadState.Content(tableScreenPreviewCells(12)),
                     editingIndex = 0,
+                    editorDraft = "Cell 0",
                 ),
             onIntent = {},
             onNavigateUp = {},

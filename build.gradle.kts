@@ -53,6 +53,7 @@ val coverageTaskDependencies =
         ":app:pixelTabletApi35DebugAndroidTest",
         ":data:test",
         ":domain:test",
+        ":recovery:test",
         ":ui:testDebugUnitTest",
         ":ui:pixelTabletApi35DebugAndroidTest",
     )
@@ -103,6 +104,7 @@ val coverageClassDirectories =
         ),
         project(":data").layout.buildDirectory.dir("classes/kotlin/main"),
         project(":domain").layout.buildDirectory.dir("classes/kotlin/main"),
+        project(":recovery").layout.buildDirectory.dir("classes/kotlin/main"),
     ).asFileTree.matching {
         exclude(
             "**/R.class",
