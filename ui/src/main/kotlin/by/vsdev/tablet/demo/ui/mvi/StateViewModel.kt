@@ -6,13 +6,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-internal abstract class MviViewModel<S, I>(
+internal abstract class StateViewModel<S>(
     initialState: S,
 ) : ViewModel() {
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<S> = _state.asStateFlow()
-
-    abstract fun onIntent(intent: I)
 
     protected fun setState(reducer: S.() -> S) = _state.update(reducer)
 }

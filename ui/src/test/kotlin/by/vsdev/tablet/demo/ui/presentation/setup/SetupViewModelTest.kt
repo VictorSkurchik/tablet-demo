@@ -3,7 +3,6 @@ package by.vsdev.tablet.demo.ui.presentation.setup
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.SavedStateHandle
-import app.cash.turbine.test
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.domain.usecase.FieldError
 import by.vsdev.tablet.demo.domain.usecase.ValidateTableConfigUseCase
@@ -77,32 +76,24 @@ class SetupViewModelTest {
         }
 
     @Test
-    fun `build with valid inputs emits navigation with the parsed config`() =
+    fun `build reads the latest valid inputs and returns their config`() =
         runTest(mainDispatcherRule.dispatcher) {
             val vm = viewModel()
             vm.enter(rows = "250", columns = "4")
-            advanceUntilIdle()
 
-            vm.navigation.test {
-                vm.onIntent(SetupIntent.BuildClicked)
-                assertEquals(TableConfig(rows = 250, columns = 4), awaitItem())
-                cancelAndConsumeRemainingEvents()
-            }
+            assertEquals(TableConfig(rows = 250, columns = 4), vm.buildConfig())
         }
 
     @Test
-    fun `build with empty inputs reveals errors and emits nothing`() =
+    fun `build with empty inputs reveals errors and returns no config`() =
         runTest(mainDispatcherRule.dispatcher) {
             val vm = viewModel()
 
-            vm.navigation.test {
-                vm.onIntent(SetupIntent.BuildClicked)
-                expectNoEvents()
-                val state = vm.state.value
-                assertEquals(FieldError.EMPTY, state.rowsError)
-                assertEquals(FieldError.EMPTY, state.columnsError)
-                assertFalse(state.canBuild)
-            }
+            assertNull(vm.buildConfig())
+            val state = vm.state.value
+            assertEquals(FieldError.EMPTY, state.rowsError)
+            assertEquals(FieldError.EMPTY, state.columnsError)
+            assertFalse(state.canBuild)
         }
 
     @Test

@@ -59,13 +59,27 @@ internal fun flingTable() {
         checkNotNull(device.findObject(firstCellSelector)) {
             "The first table cell is not visible before scrolling"
         }
+    val scrollableGrid =
+        checkNotNull(
+            generateSequence(firstCell) { it.parent }
+                .firstOrNull { it.isScrollable },
+        ) {
+            "The first table cell is not inside a scrollable container"
+        }
+    val scrollBounds = scrollableGrid.visibleBounds
     val swipeX = firstCell.visibleBounds.centerX()
+    val swipeStartY =
+        scrollBounds.top +
+            scrollBounds.height() * SWIPE_START_HEIGHT_NUMERATOR / SWIPE_HEIGHT_DENOMINATOR
+    val swipeEndY =
+        scrollBounds.top +
+            scrollBounds.height() / SWIPE_HEIGHT_DENOMINATOR
     repeat(FLING_COUNT) {
         device.swipe(
             swipeX,
-            device.displayHeight * SWIPE_START_HEIGHT_NUMERATOR / SWIPE_HEIGHT_DENOMINATOR,
+            swipeStartY,
             swipeX,
-            device.displayHeight / SWIPE_HEIGHT_DENOMINATOR,
+            swipeEndY,
             SWIPE_STEPS,
         )
     }

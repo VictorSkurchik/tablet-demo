@@ -1,8 +1,8 @@
 package by.vsdev.tablet.demo.domain.repository
 
 import by.vsdev.tablet.demo.domain.model.TableConfig
-import by.vsdev.tablet.demo.domain.model.TableDataResult
+import by.vsdev.tablet.demo.domain.model.TableData
 
 interface TableDataRepository {
-    suspend fun generate(config: TableConfig): TableDataResult
+    suspend fun generate(config: TableConfig): TableData
 }

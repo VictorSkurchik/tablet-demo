@@ -14,6 +14,10 @@ import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.WindowSize
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -21,6 +25,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.DpSize
@@ -43,11 +49,15 @@ class SetupAdaptiveLayoutTest {
         var window by mutableStateOf(TestWindow(width = 400, height = 700))
         setSetupScreen { window }
 
-        composeRule.onNodeWithTag(SETUP_FORM_PANE_TAG).assertExists()
-        composeRule.onNodeWithTag(SETUP_SUPPORTING_PANE_TAG).assertDoesNotExist()
-        composeRule.onNodeWithTag(SETUP_PANE_DRAG_HANDLE_TAG).assertDoesNotExist()
+        assertSingleSetupPane()
         composeRule.onNode(hasSetTextAction() and hasText("Rows")).performTextInput("4")
         composeRule.onNode(hasSetTextAction() and hasText("Columns")).performTextInput("3")
+        assertSetupValuesAndColumnFocus()
+
+        composeRule.runOnIdle { window = window.copy(width = 700) }
+
+        assertSingleSetupPane()
+        assertSetupValuesAndColumnFocus()
 
         composeRule.runOnIdle { window = window.copy(width = 900) }
 
@@ -55,8 +65,7 @@ class SetupAdaptiveLayoutTest {
         composeRule.onNodeWithTag(SETUP_SUPPORTING_PANE_TAG).assertExists()
         composeRule.onNodeWithTag(SETUP_PANE_DRAG_HANDLE_TAG).assertHasClickAction()
         composeRule.onAllNodesWithText("Table size").assertCountEquals(1)
-        composeRule.onNode(hasSetTextAction() and hasText("Rows")).assertTextContains("4")
-        composeRule.onNode(hasSetTextAction() and hasText("Columns")).assertTextContains("3")
+        assertSetupValuesAndColumnFocus()
         composeRule.onNodeWithText("Build table").assertExists()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -86,6 +95,10 @@ class SetupAdaptiveLayoutTest {
             abs(introBounds.width - formBounds.width) <= 1f,
         )
 
+        assertClearedColumnFocusSurvivesResize { width ->
+            window = window.copy(width = width)
+        }
+
         composeRule
             .onNodeWithTag(SETUP_PANE_DRAG_HANDLE_TAG)
             .performSemanticsAction(SemanticsActions.OnClick)
@@ -96,6 +109,53 @@ class SetupAdaptiveLayoutTest {
                     .fetchSemanticsNode()
                     .boundsInRoot.width
             abs(resizedIntroWidth - introBounds.width) > 1f
+        }
+    }
+
+    private fun assertClearedColumnFocusSurvivesResize(setWidth: (Int) -> Unit) {
+        val columnsField = hasSetTextAction() and hasText("Columns")
+        composeRule.onNode(columnsField).performImeAction()
+        composeRule.onNode(columnsField).assertIsNotFocused()
+
+        composeRule.runOnIdle { setWidth(400) }
+        assertSingleSetupPane()
+        composeRule.onNode(columnsField).assertIsNotFocused()
+
+        composeRule.runOnIdle { setWidth(900) }
+        composeRule.onNode(columnsField).assertIsNotFocused()
+    }
+
+    @Test
+    fun mediumWidthCompactHeightKeepsBuildActionReachable() {
+        var buildRequested = false
+        setSetupScreen(
+            windowProvider = { TestWindow(width = 700, height = 400) },
+            state = SetupUiState(canBuild = true),
+            rowsInput = TextFieldState("4"),
+            columnsInput = TextFieldState("3"),
+            onBuild = { buildRequested = true },
+        )
+
+        composeRule.onNodeWithTag(SETUP_FORM_PANE_TAG).assertExists()
+        composeRule.onNodeWithTag(SETUP_SUPPORTING_PANE_TAG).assertDoesNotExist()
+        composeRule
+            .onNodeWithText("Build table")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertIsEnabled()
+            .assertHasClickAction()
+
+        val formBounds =
+            composeRule.onNodeWithTag(SETUP_FORM_PANE_TAG).fetchSemanticsNode().boundsInRoot
+        val actionBounds =
+            composeRule.onNodeWithText("Build table").fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "The primary action should fit inside the compact-height form after scrolling",
+            actionBounds.top >= formBounds.top && actionBounds.bottom <= formBounds.bottom,
+        )
+        composeRule.onNodeWithText("Build table").performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.runOnIdle {
+            assertTrue("The visible primary action should remain usable", buildRequested)
         }
     }
 
@@ -167,9 +227,27 @@ class SetupAdaptiveLayoutTest {
         )
     }
 
-    private fun setSetupScreen(windowProvider: () -> TestWindow) {
-        val rowsInput = TextFieldState()
-        val columnsInput = TextFieldState()
+    private fun assertSingleSetupPane() {
+        composeRule.onNodeWithTag(SETUP_FORM_PANE_TAG).assertExists()
+        composeRule.onNodeWithTag(SETUP_SUPPORTING_PANE_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(SETUP_PANE_DRAG_HANDLE_TAG).assertDoesNotExist()
+    }
+
+    private fun assertSetupValuesAndColumnFocus() {
+        composeRule.onNode(hasSetTextAction() and hasText("Rows")).assertTextContains("4")
+        composeRule
+            .onNode(hasSetTextAction() and hasText("Columns"))
+            .assertTextContains("3")
+            .assertIsFocused()
+    }
+
+    private fun setSetupScreen(
+        state: SetupUiState = SetupUiState(),
+        rowsInput: TextFieldState = TextFieldState(),
+        columnsInput: TextFieldState = TextFieldState(),
+        onBuild: () -> Unit = {},
+        windowProvider: () -> TestWindow,
+    ) {
         composeRule.setContent {
             val window = windowProvider()
             DeviceConfigurationOverride(
@@ -179,10 +257,10 @@ class SetupAdaptiveLayoutTest {
             ) {
                 AppTheme {
                     SetupScreen(
-                        state = SetupUiState(),
+                        state = state,
                         rowsInput = rowsInput,
                         columnsInput = columnsInput,
-                        onIntent = {},
+                        onBuild = onBuild,
                         windowAdaptiveInfo = window.toAdaptiveInfo(),
                     )
                 }

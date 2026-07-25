@@ -26,6 +26,7 @@ import by.vsdev.tablet.demo.ui.presentation.table.TableIntent
 import by.vsdev.tablet.demo.ui.presentation.table.TableLoadState
 import by.vsdev.tablet.demo.ui.presentation.table.TableUiState
 import by.vsdev.tablet.demo.ui.theme.AppTheme
+import kotlinx.collections.immutable.toPersistentList
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -40,7 +41,10 @@ class TableAccessibilityTest {
             AppTheme {
                 TableGrid(
                     columns = 2,
-                    cells = List(4) { CellUiState("Cell $it") },
+                    content =
+                        TableLoadState.Content(
+                            List(4) { CellUiState("Cell $it") }.toPersistentList(),
+                        ),
                     onIntent = {},
                 )
             }
@@ -74,7 +78,10 @@ class TableAccessibilityTest {
             AppTheme {
                 TableGrid(
                     columns = 2,
-                    cells = List(100) { CellUiState("Cell $it") },
+                    content =
+                        TableLoadState.Content(
+                            List(100) { CellUiState("Cell $it") }.toPersistentList(),
+                        ),
                     restoreFocusIndex = restoreFocusIndex,
                     onIntent = {},
                 )
@@ -100,7 +107,10 @@ class TableAccessibilityTest {
                 Box(Modifier.height(360.dp)) {
                     TableGrid(
                         columns = 2,
-                        cells = List(100) { CellUiState("Cell $it") },
+                        content =
+                            TableLoadState.Content(
+                                List(100) { CellUiState("Cell $it") }.toPersistentList(),
+                            ),
                         restoreFocusIndex = restoreFocusIndex,
                         onIntent = {},
                     )

@@ -49,8 +49,10 @@ import by.vsdev.tablet.demo.ui.components.molecules.SelectableCell
 import by.vsdev.tablet.demo.ui.components.molecules.selectableCellHeight
 import by.vsdev.tablet.demo.ui.presentation.table.CellUiState
 import by.vsdev.tablet.demo.ui.presentation.table.TableIntent
+import by.vsdev.tablet.demo.ui.presentation.table.TableLoadState
 import by.vsdev.tablet.demo.ui.theme.AppSpacing
 import by.vsdev.tablet.demo.ui.theme.AppTheme
+import kotlinx.collections.immutable.toPersistentList
 
 private val TableContentPadding = AppSpacing.medium
 private val TableCellSpacing = AppSpacing.small
@@ -159,11 +161,12 @@ private fun calculateTableGridLayout(
 @Composable
 internal fun TableGrid(
     columns: Int,
-    cells: List<CellUiState>,
+    content: TableLoadState.Content,
     onIntent: (TableIntent) -> Unit,
     modifier: Modifier = Modifier,
     restoreFocusIndex: Int? = null,
 ) {
+    val cells = content.cells
     val horizontalScrollState = rememberScrollState()
     val verticalGridState = rememberLazyGridState()
     val cellHeight = selectableCellHeight()
@@ -188,7 +191,7 @@ internal fun TableGrid(
     ) {
         TableGridViewport(
             columns = columns,
-            cells = cells,
+            content = content,
             cellHeight = cellHeight,
             verticalGridState = verticalGridState,
             horizontalScrollState = horizontalScrollState,
@@ -203,7 +206,7 @@ internal fun TableGrid(
 @Composable
 private fun TableGridViewport(
     columns: Int,
-    cells: List<CellUiState>,
+    content: TableLoadState.Content,
     cellHeight: Dp,
     verticalGridState: LazyGridState,
     horizontalScrollState: ScrollState,
@@ -212,6 +215,7 @@ private fun TableGridViewport(
     onRestoreTargetPlaced: (Int) -> Unit,
     onIntent: (TableIntent) -> Unit,
 ) {
+    val cells = content.cells
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val layout =
             calculateTableGridLayout(
@@ -230,7 +234,7 @@ private fun TableGridViewport(
         ) {
             TableCells(
                 columns = columns,
-                cells = cells,
+                content = content,
                 cellHeight = cellHeight,
                 state = verticalGridState,
                 restoreFocusIndex = restoreFocusIndex,
@@ -319,7 +323,7 @@ private fun RestoreCellFocus(
 @Composable
 private fun TableCells(
     columns: Int,
-    cells: List<CellUiState>,
+    content: TableLoadState.Content,
     cellHeight: Dp,
     state: LazyGridState,
     restoreFocusIndex: Int?,
@@ -328,6 +332,7 @@ private fun TableCells(
     onIntent: (TableIntent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val cells = content.cells
     val selectedDescription = stringResource(R.string.table_cell_selected)
     val notSelectedDescription = stringResource(R.string.table_cell_not_selected)
     val toggleLabel = stringResource(R.string.table_cell_toggle)
@@ -489,6 +494,14 @@ private fun HorizontalScrollIndicator(
 @Preview(name = "Table grid", widthDp = 700, heightDp = 420)
 @Composable
 private fun TableGridPreview() {
-    val cells = List(40) { CellUiState(text = "Cell $it", isSelected = it % 3 == 0) }
-    AppTheme { TableGrid(columns = 4, cells = cells, onIntent = {}) }
+    val cells =
+        List(40) { CellUiState(text = "Cell $it", isSelected = it % 3 == 0) }
+            .toPersistentList()
+    AppTheme {
+        TableGrid(
+            columns = 4,
+            content = TableLoadState.Content(cells),
+            onIntent = {},
+        )
+    }
 }

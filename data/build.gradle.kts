@@ -17,6 +17,8 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":recovery"))
 
+    implementation(libs.kotlinx.collections.immutable)
+
     implementation(platform(libs.kotlinx.coroutines.bom))
     implementation(libs.kotlinx.coroutines.core)
 

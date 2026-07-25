@@ -2,13 +2,13 @@ package by.vsdev.tablet.demo.ui.presentation.table
 
 import androidx.lifecycle.viewModelScope
 import by.vsdev.tablet.demo.domain.model.TableConfig
-import by.vsdev.tablet.demo.domain.model.TableDataResult
 import by.vsdev.tablet.demo.domain.usecase.GenerateTableDataUseCase
 import by.vsdev.tablet.demo.domain.util.BackgroundDispatcher
 import by.vsdev.tablet.demo.recovery.TableRecoveryRepository
 import by.vsdev.tablet.demo.recovery.model.RecoveredCell
 import by.vsdev.tablet.demo.recovery.model.TableRecoverySnapshot
-import by.vsdev.tablet.demo.ui.mvi.MviViewModel
+import by.vsdev.tablet.demo.ui.mvi.StateViewModel
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -20,7 +20,7 @@ internal class TableViewModel(
     private val generateTableData: GenerateTableDataUseCase,
     private val recoveryRepository: TableRecoveryRepository,
     private val backgroundDispatcher: BackgroundDispatcher,
-) : MviViewModel<TableUiState, TableIntent>(TableUiState(config = config)) {
+) : StateViewModel<TableUiState>(TableUiState(config = config)) {
     private var loadJob: Job? = null
     private var recoveryCells: MutableList<RecoveredCell> = mutableListOf()
     private val recoveryCoordinator =
@@ -35,7 +35,7 @@ internal class TableViewModel(
         load()
     }
 
-    override fun onIntent(intent: TableIntent) {
+    fun onIntent(intent: TableIntent) {
         when (intent) {
             is TableIntent.CellClicked ->
                 updateCell(intent.index) {
@@ -85,26 +85,21 @@ internal class TableViewModel(
     }
 
     private suspend fun generate() {
-        when (val result = generateTableData(config)) {
-            is TableDataResult.Success -> {
-                val recovered =
-                    withContext(backgroundDispatcher.value) {
-                        result.data.cells.map { RecoveredCell(text = it, isSelected = false) }
-                    }
-                recoveryCells = recovered.toMutableList()
-                setState {
-                    copy(
-                        loadState =
-                            TableLoadState.Content(
-                                recovered.map { CellUiState(text = it.text) },
-                            ),
-                    )
-                }
-                recoveryCoordinator.markDirty()
+        val data = generateTableData(config)
+        val recovered =
+            withContext(backgroundDispatcher.value) {
+                data.cells.map { RecoveredCell(text = it, isSelected = false) }
             }
-
-            TableDataResult.GenerationUnavailable -> showLoadError()
+        recoveryCells = recovered.toMutableList()
+        setState {
+            copy(
+                loadState =
+                    TableLoadState.Content(
+                        recovered.map { CellUiState(text = it.text) }.toPersistentList(),
+                    ),
+            )
         }
+        recoveryCoordinator.markDirty()
     }
 
     private fun restore(snapshot: TableRecoverySnapshot) {
@@ -113,9 +108,9 @@ internal class TableViewModel(
             copy(
                 loadState =
                     TableLoadState.Content(
-                        snapshot.cells.map {
-                            CellUiState(text = it.text, isSelected = it.isSelected)
-                        },
+                        snapshot.cells
+                            .map { CellUiState(text = it.text, isSelected = it.isSelected) }
+                            .toPersistentList(),
                     ),
                 editingIndex = snapshot.editingIndex,
                 editorDraft = snapshot.editorDraft,
@@ -163,14 +158,14 @@ internal class TableViewModel(
         val wasUpdated = content != null && cell != null
         if (content != null && cell != null) {
             val updatedCell = cell.transform()
-            val updatedCells = content.cells.toMutableList()
-            updatedCells[index] = updatedCell
             recoveryCells[index] =
                 RecoveredCell(
                     text = updatedCell.text,
                     isSelected = updatedCell.isSelected,
                 )
-            setState { copy(loadState = TableLoadState.Content(updatedCells)) }
+            setState {
+                copy(loadState = TableLoadState.Content(content.cells.set(index, updatedCell)))
+            }
             recoveryCoordinator.markDirty()
         }
         return wasUpdated

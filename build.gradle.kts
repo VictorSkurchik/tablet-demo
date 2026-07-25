@@ -1,8 +1,10 @@
 import dev.detekt.gradle.extensions.DetektExtension
+import org.gradle.api.artifacts.dsl.LockMode
 import org.gradle.testing.jacoco.tasks.JacocoReport
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 
 plugins {
+    base
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.android.test) apply false
@@ -18,6 +20,11 @@ plugins {
 subprojects {
     pluginManager.apply("org.jlleitschuh.gradle.ktlint")
     pluginManager.apply("dev.detekt")
+
+    dependencyLocking {
+        lockAllConfigurations()
+        lockMode.set(LockMode.DEFAULT)
+    }
 
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
         pluginManager.apply("jacoco")
@@ -43,17 +50,17 @@ subprojects {
 val coverageTaskDependencies =
     listOf(
         ":app:testDebugUnitTest",
-        ":app:connectedDebugAndroidTest",
+        ":app:pixelTabletApi35DebugAndroidTest",
         ":data:test",
         ":domain:test",
         ":recovery:test",
         ":ui:testDebugUnitTest",
-        ":ui:connectedDebugAndroidTest",
+        ":ui:pixelTabletApi35DebugAndroidTest",
     )
 
 project(":app").tasks.configureEach {
-    if (name == "connectedDebugAndroidTest") {
-        mustRunAfter(":ui:connectedDebugAndroidTest")
+    if (name == "pixelTabletApi35DebugAndroidTest") {
+        mustRunAfter(":ui:pixelTabletApi35DebugAndroidTest")
     }
 }
 
@@ -68,16 +75,12 @@ val coverageExecutionData =
         project(":data").layout.buildDirectory.file("jacoco/test.exec"),
         project(":domain").layout.buildDirectory.file("jacoco/test.exec"),
         project(":app").fileTree(
-            project(":app").layout.buildDirectory.dir(
-                "outputs/code_coverage/debugAndroidTest/connected",
-            ),
+            project(":app").layout.buildDirectory.dir("outputs"),
         ) {
             include("**/*.ec")
         },
         project(":ui").fileTree(
-            project(":ui").layout.buildDirectory.dir(
-                "outputs/code_coverage/debugAndroidTest/connected",
-            ),
+            project(":ui").layout.buildDirectory.dir("outputs"),
         ) {
             include("**/*.ec")
         },

@@ -27,5 +27,5 @@
     <string name="editor_character_count">Сімвалаў: %1$d/%2$d</string>
     <string name="editor_save">Захаваць</string>
     <string name="editor_cancel">Скасаваць</string>
-    <string name="editor_empty_hint">Выберыце ячэйку, каб змяніць яе значэнне.</string>
+    <string name="editor_empty_hint">Двойчы дакраніцеся да ячэйкі або пстрыкніце па ёй, каб змяніць яе. Клавіятура: F2.</string>
 </resources>

@@ -2,7 +2,6 @@ package by.vsdev.tablet.demo.ui.presentation.table
 
 import by.vsdev.tablet.demo.domain.model.TableConfig
 import by.vsdev.tablet.demo.domain.model.TableData
-import by.vsdev.tablet.demo.domain.model.TableDataResult
 import by.vsdev.tablet.demo.domain.repository.TableDataRepository
 import by.vsdev.tablet.demo.domain.usecase.GenerateTableDataUseCase
 import by.vsdev.tablet.demo.domain.util.BackgroundDispatcher
@@ -10,6 +9,7 @@ import by.vsdev.tablet.demo.recovery.TableRecoveryRepository
 import by.vsdev.tablet.demo.recovery.model.RecoveredCell
 import by.vsdev.tablet.demo.recovery.model.TableRecoverySnapshot
 import by.vsdev.tablet.demo.ui.MainDispatcherRule
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.advanceTimeBy
@@ -22,6 +22,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import kotlin.coroutines.CoroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TableViewModelTest {
@@ -32,28 +33,29 @@ class TableViewModelTest {
     private val recoveryRepository = FakeRecoveryRepository()
     private val successfulRepository =
         object : TableDataRepository {
-            override suspend fun generate(config: TableConfig): TableDataResult =
-                TableDataResult.Success(successfulTableData(config))
+            override suspend fun generate(config: TableConfig): TableData = successfulTableData(config)
         }
 
     private fun viewModel(
         repository: TableDataRepository = successfulRepository,
         sessionId: String = "session",
+        backgroundDispatcher: CoroutineDispatcher = mainDispatcherRule.dispatcher,
     ): TableViewModel =
         TableViewModel(
             config = config,
             sessionId = sessionId,
             generateTableData = GenerateTableDataUseCase(repository),
             recoveryRepository = recoveryRepository,
-            backgroundDispatcher = BackgroundDispatcher(mainDispatcherRule.dispatcher),
+            backgroundDispatcher = BackgroundDispatcher(backgroundDispatcher),
         )
 
     @Test
     fun `loads the grid off the loading state`() =
         runTest(mainDispatcherRule.dispatcher) {
-            val viewModel = viewModel()
+            val mappingDispatcher = CountingDispatcher(mainDispatcherRule.dispatcher)
+            val viewModel = viewModel(backgroundDispatcher = mappingDispatcher)
 
-            assertTrue(viewModel.state.value.isLoading)
+            assertEquals(TableLoadState.Loading, viewModel.state.value.loadState)
             assertTrue(
                 viewModel.state.value.cells
                     .isEmpty(),
@@ -61,7 +63,8 @@ class TableViewModelTest {
 
             advanceUntilIdle()
 
-            assertFalse(viewModel.state.value.isLoading)
+            assertTrue(mappingDispatcher.dispatchCount > 0)
+            assertTrue(viewModel.state.value.loadState is TableLoadState.Content)
             assertEquals(config.cellCount, viewModel.state.value.cells.size)
             assertEquals(
                 "c0",
@@ -324,55 +327,27 @@ class TableViewModelTest {
     }
 
     @Test
-    fun `unavailable generation exposes retryable error and retry recovers`() =
-        runTest(mainDispatcherRule.dispatcher) {
-            var attempts = 0
-            val repository =
-                object : TableDataRepository {
-                    override suspend fun generate(config: TableConfig): TableDataResult {
-                        attempts++
-                        return if (attempts == 1) {
-                            TableDataResult.GenerationUnavailable
-                        } else {
-                            TableDataResult.Success(successfulTableData(config))
-                        }
-                    }
-                }
-            val viewModel = viewModel(repository)
-
-            advanceUntilIdle()
-            assertTrue(viewModel.state.value.hasLoadError)
-
-            viewModel.onIntent(TableIntent.RetryLoad)
-            advanceUntilIdle()
-
-            assertEquals(2, attempts)
-            assertFalse(viewModel.state.value.hasLoadError)
-            assertEquals(config.cellCount, viewModel.state.value.cells.size)
-        }
-
-    @Test
     fun `unexpected generation failure exposes an error and retry recovers`() =
         runTest(mainDispatcherRule.dispatcher) {
             var attempts = 0
             val repository =
                 object : TableDataRepository {
-                    override suspend fun generate(config: TableConfig): TableDataResult {
+                    override suspend fun generate(config: TableConfig): TableData {
                         attempts++
                         check(attempts > 1) { "synthetic generation failure" }
-                        return TableDataResult.Success(successfulTableData(config))
+                        return successfulTableData(config)
                     }
                 }
             val viewModel = viewModel(repository)
 
             advanceUntilIdle()
-            assertTrue(viewModel.state.value.hasLoadError)
+            assertEquals(TableLoadState.Error, viewModel.state.value.loadState)
 
             viewModel.onIntent(TableIntent.RetryLoad)
             advanceUntilIdle()
 
             assertEquals(2, attempts)
-            assertFalse(viewModel.state.value.hasLoadError)
+            assertTrue(viewModel.state.value.loadState is TableLoadState.Content)
         }
 
     @Test
@@ -382,7 +357,7 @@ class TableViewModelTest {
             var cancellations = 0
             val repository =
                 object : TableDataRepository {
-                    override suspend fun generate(config: TableConfig): TableDataResult {
+                    override suspend fun generate(config: TableConfig): TableData {
                         attempts++
                         if (attempts == 1) {
                             try {
@@ -391,7 +366,7 @@ class TableViewModelTest {
                                 cancellations++
                             }
                         }
-                        return TableDataResult.Success(successfulTableData(config, "replacement-"))
+                        return successfulTableData(config, "replacement-")
                     }
                 }
             val viewModel = viewModel(repository)
@@ -415,5 +390,20 @@ class TableViewModelTest {
             config: TableConfig,
             prefix: String = "c",
         ) = TableData(config, List(config.cellCount) { "$prefix$it" })
+    }
+
+    private class CountingDispatcher(
+        private val delegate: CoroutineDispatcher,
+    ) : CoroutineDispatcher() {
+        var dispatchCount = 0
+            private set
+
+        override fun dispatch(
+            context: CoroutineContext,
+            block: Runnable,
+        ) {
+            dispatchCount++
+            delegate.dispatch(context, block)
+        }
     }
 }

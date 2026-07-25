@@ -5,12 +5,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -111,7 +113,7 @@ class EditorPaneTest {
         composeRule.waitForIdle()
 
         closeSoftKeyboard()
-        composeRule.onNodeWithText("Save").performScrollTo().performClick()
+        composeRule.onNodeWithText("Save").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
 
         composeRule.runOnIdle { assertTrue(confirmed) }
     }
@@ -135,7 +137,7 @@ class EditorPaneTest {
         }
 
         closeSoftKeyboard()
-        composeRule.onNodeWithText("Save").performScrollTo().performClick()
+        composeRule.onNodeWithText("Save").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
 
         composeRule.runOnIdle { assertTrue(confirmed) }
     }
