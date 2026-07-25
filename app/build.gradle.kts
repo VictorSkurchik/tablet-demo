@@ -50,6 +50,15 @@ android {
         emulatorControl {
             enable = true
         }
+        managedDevices {
+            localDevices {
+                create("pixelTabletApi35") {
+                    device = "Pixel Tablet"
+                    apiLevel = 35
+                    systemImageSource = "google_apis"
+                }
+            }
+        }
     }
 
     buildTypes {

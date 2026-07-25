@@ -25,7 +25,6 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
@@ -154,7 +153,7 @@ class SetupAdaptiveLayoutTest {
             "The primary action should fit inside the compact-height form after scrolling",
             actionBounds.top >= formBounds.top && actionBounds.bottom <= formBounds.bottom,
         )
-        composeRule.onNodeWithText("Build table").performClick()
+        composeRule.onNodeWithText("Build table").performSemanticsAction(SemanticsActions.OnClick)
         composeRule.runOnIdle {
             assertTrue("The visible primary action should remain usable", buildRequested)
         }
