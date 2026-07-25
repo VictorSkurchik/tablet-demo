@@ -23,7 +23,7 @@ subprojects {
 
     dependencyLocking {
         lockAllConfigurations()
-        lockMode.set(LockMode.STRICT)
+        lockMode.set(LockMode.DEFAULT)
     }
 
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
