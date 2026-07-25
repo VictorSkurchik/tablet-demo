@@ -90,7 +90,7 @@ class SetupFormTest {
             }
         }
 
-        composeRule.onNodeWithText("Build table").performScrollTo().performClick()
+        composeRule.onNodeWithText("Build table").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
 
         composeRule.runOnIdle { assertTrue(buildClicked) }
     }

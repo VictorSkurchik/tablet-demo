@@ -23,7 +23,7 @@ subprojects {
 
     dependencyLocking {
         lockAllConfigurations()
-        lockMode.set(LockMode.STRICT)
+        lockMode.set(LockMode.DEFAULT)
     }
 
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
@@ -50,16 +50,16 @@ subprojects {
 val coverageTaskDependencies =
     listOf(
         ":app:testDebugUnitTest",
-        ":app:connectedDebugAndroidTest",
+        ":app:pixelTabletApi35DebugAndroidTest",
         ":data:test",
         ":domain:test",
         ":ui:testDebugUnitTest",
-        ":ui:connectedDebugAndroidTest",
+        ":ui:pixelTabletApi35DebugAndroidTest",
     )
 
 project(":app").tasks.configureEach {
-    if (name == "connectedDebugAndroidTest") {
-        mustRunAfter(":ui:connectedDebugAndroidTest")
+    if (name == "pixelTabletApi35DebugAndroidTest") {
+        mustRunAfter(":ui:pixelTabletApi35DebugAndroidTest")
     }
 }
 
@@ -74,16 +74,12 @@ val coverageExecutionData =
         project(":data").layout.buildDirectory.file("jacoco/test.exec"),
         project(":domain").layout.buildDirectory.file("jacoco/test.exec"),
         project(":app").fileTree(
-            project(":app").layout.buildDirectory.dir(
-                "outputs/code_coverage/debugAndroidTest/connected",
-            ),
+            project(":app").layout.buildDirectory.dir("outputs"),
         ) {
             include("**/*.ec")
         },
         project(":ui").fileTree(
-            project(":ui").layout.buildDirectory.dir(
-                "outputs/code_coverage/debugAndroidTest/connected",
-            ),
+            project(":ui").layout.buildDirectory.dir("outputs"),
         ) {
             include("**/*.ec")
         },
