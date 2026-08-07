@@ -85,7 +85,7 @@ internal class TableViewModel(
                     if (updatedCell == cell) {
                         content
                     } else {
-                        TableLoadState.Content(content.cells.set(index, updatedCell))
+                        TableLoadState.Content(content.cells.replacingAt(index, updatedCell))
                     }
                 } else {
                     loadState
@@ -110,7 +110,7 @@ internal class TableViewModel(
             val cell = content.cells.getOrNull(index) ?: return@setState this
             val updatedCell = cell.transform()
             if (updatedCell == cell) return@setState this
-            val updatedCells = content.cells.set(index, updatedCell)
+            val updatedCells = content.cells.replacingAt(index, updatedCell)
             copy(loadState = TableLoadState.Content(updatedCells))
         }
     }
