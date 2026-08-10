@@ -29,7 +29,7 @@ espressoDevice = "1.1.0"
 
 leakcanary = "2.14"
 ktlintGradle = "14.2.0"
-detekt = "2.0.0-alpha.5"
+detekt = "2.0.0-alpha.6"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
